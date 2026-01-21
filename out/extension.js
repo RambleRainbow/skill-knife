@@ -38,6 +38,7 @@ exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const sidebarProvider_1 = require("./views/sidebarProvider");
 const skillDetailPanel_1 = require("./views/skillDetailPanel");
+const marketPanel_1 = require("./views/marketPanel");
 let treeDataProvider;
 function activate(context) {
     // Create and register tree data provider
@@ -52,9 +53,9 @@ function activate(context) {
     const showDetailCmd = vscode.commands.registerCommand('skillManager.showSkillDetail', (skill) => {
         skillDetailPanel_1.SkillDetailPanel.show(skill);
     });
-    // Register show markets command (placeholder for now)
+    // Register show markets command
     const showMarketsCmd = vscode.commands.registerCommand('skillManager.showMarkets', () => {
-        vscode.window.showInformationMessage('Markets view coming in Milestone 2');
+        marketPanel_1.MarketPanel.show();
     });
     context.subscriptions.push(refreshCmd, showDetailCmd, showMarketsCmd);
 }

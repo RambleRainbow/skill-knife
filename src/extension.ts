@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { SkillManagerTreeDataProvider } from './views/sidebarProvider';
 import { SkillDetailPanel } from './views/skillDetailPanel';
+import { MarketPanel } from './views/marketPanel';
 import { Skill } from './types';
 
 let treeDataProvider: SkillManagerTreeDataProvider;
@@ -24,11 +25,11 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  // Register show markets command (placeholder for now)
+  // Register show markets command
   const showMarketsCmd = vscode.commands.registerCommand(
     'skillManager.showMarkets',
     () => {
-      vscode.window.showInformationMessage('Markets view coming in Milestone 2');
+      MarketPanel.show();
     }
   );
 
