@@ -1,27 +1,39 @@
 # SkillManager
 
-A VSCode extension to manage AI agent skills.
+A VSCode extension to browse and manage AI agent skills installed on your system.
 
 ## Features
 
-Browse and manage AI agent skills directly from VSCode.
+- **Sidebar View**: See all installed skills at a glance with location tags
+- **Skill Details**: Click any skill to view its full documentation
+- **Multi-Reader Support**: Works with Claude Code, Codex, Gemini CLI, Antigravity, and more
+- **Configurable**: Add custom readers via settings
 
-## Requirements
+## Usage
 
-- VSCode 1.85.0 or higher
+1. Open the SkillManager view from the activity bar
+2. Click any skill to see its details
+3. Use the refresh button to rescan skills
 
-## Extension Settings
+## Configuration
 
-This extension contributes the following settings:
+Add custom readers in `settings.json`:
 
-* None yet
+```json
+{
+  "skillManager.readers": [
+    {
+      "id": "my-agent",
+      "name": "My Agent",
+      "shortName": "MA",
+      "globalPath": "~/.myagent/skills",
+      "projectPath": ".myagent/skills"
+    }
+  ]
+}
+```
 
-## Known Issues
+## Roadmap
 
-None yet.
-
-## Release Notes
-
-### 0.0.1
-
-Initial release - project scaffolding.
+- **Milestone 2**: Market browsing and skill installation
+- **Milestone 3**: Update detection and batch operations
