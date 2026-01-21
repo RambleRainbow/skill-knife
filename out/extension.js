@@ -37,6 +37,7 @@ exports.activate = activate;
 exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const sidebarProvider_1 = require("./views/sidebarProvider");
+const skillDetailPanel_1 = require("./views/skillDetailPanel");
 let treeDataProvider;
 function activate(context) {
     // Create and register tree data provider
@@ -47,9 +48,9 @@ function activate(context) {
         treeDataProvider.refresh();
         vscode.window.showInformationMessage('Skills refreshed');
     });
-    // Register show detail command (placeholder for now)
+    // Register show detail command
     const showDetailCmd = vscode.commands.registerCommand('skillManager.showSkillDetail', (skill) => {
-        vscode.window.showInformationMessage(`Skill: ${skill.name}`);
+        skillDetailPanel_1.SkillDetailPanel.show(skill);
     });
     // Register show markets command (placeholder for now)
     const showMarketsCmd = vscode.commands.registerCommand('skillManager.showMarkets', () => {

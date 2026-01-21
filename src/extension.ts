@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { SkillManagerTreeDataProvider } from './views/sidebarProvider';
+import { SkillDetailPanel } from './views/skillDetailPanel';
 import { Skill } from './types';
 
 let treeDataProvider: SkillManagerTreeDataProvider;
@@ -15,11 +16,11 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.showInformationMessage('Skills refreshed');
   });
 
-  // Register show detail command (placeholder for now)
+  // Register show detail command
   const showDetailCmd = vscode.commands.registerCommand(
     'skillManager.showSkillDetail',
     (skill: Skill) => {
-      vscode.window.showInformationMessage(`Skill: ${skill.name}`);
+      SkillDetailPanel.show(skill);
     }
   );
 
