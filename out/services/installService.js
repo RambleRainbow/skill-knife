@@ -111,6 +111,7 @@ async function installSkill(options) {
             sourceType: 'git',
             repoUrl: `https://github.com/${skill.repoPath}`,
             subpath: skill.subpath,
+            commitHash: skill.commitHash,
             installedAt: new Date().toISOString(),
         };
         fs.writeFileSync(path.join(targetDir, '.openskills.json'), JSON.stringify(metadata, null, 2));

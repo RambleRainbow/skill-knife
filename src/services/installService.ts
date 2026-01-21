@@ -91,6 +91,7 @@ export async function installSkill(options: InstallOptions): Promise<void> {
       sourceType: 'git',
       repoUrl: `https://github.com/${skill.repoPath}`,
       subpath: skill.subpath,
+      commitHash: skill.commitHash,
       installedAt: new Date().toISOString(),
     };
 

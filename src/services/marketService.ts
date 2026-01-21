@@ -14,6 +14,7 @@ export interface MarketSkill {
   market: Market;
   repoPath: string; // e.g., "anthropics/skills"
   subpath: string;  // e.g., "skills/brainstorming"
+  commitHash?: string; // Git commit hash for version tracking
 }
 
 /**
@@ -144,6 +145,9 @@ export async function fetchMarketSkills(market: Market): Promise<MarketSkill[]> 
       await execGit(['clone', '--depth', '1', gitUrl, repoDir], cacheDir);
     }
 
+    // Get the current commit hash
+    const commitHash = (await execGit(['rev-parse', 'HEAD'], repoDir)).trim();
+
     // Scan for skills in the repo
     const skillDirs = findSkillDirectories(repoDir);
     for (const skillDir of skillDirs) {
@@ -157,6 +161,7 @@ export async function fetchMarketSkills(market: Market): Promise<MarketSkill[]> 
         market,
         repoPath: market.git,
         subpath,
+        commitHash,
       });
     }
   } catch (error) {

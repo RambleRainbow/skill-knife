@@ -155,6 +155,8 @@ async function fetchMarketSkills(market) {
                 : `https://github.com/${market.git}.git`;
             await execGit(['clone', '--depth', '1', gitUrl, repoDir], cacheDir);
         }
+        // Get the current commit hash
+        const commitHash = (await execGit(['rev-parse', 'HEAD'], repoDir)).trim();
         // Scan for skills in the repo
         const skillDirs = findSkillDirectories(repoDir);
         for (const skillDir of skillDirs) {
@@ -167,6 +169,7 @@ async function fetchMarketSkills(market) {
                 market,
                 repoPath: market.git,
                 subpath,
+                commitHash,
             });
         }
     }
