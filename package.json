@@ -11,15 +11,35 @@
     "Other"
   ],
   "activationEvents": [
-    "onView:skillManagerView"
+    "onView:skillManager.sidebarView",
+    "onView:skillManager.explorerView"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "skillManagerContainer",
+          "title": "SkillManager",
+          "icon": "media/skill-icon.svg"
+        }
+      ]
+    },
     "views": {
+      "skillManagerContainer": [
+        {
+          "id": "skillManager.sidebarView",
+          "name": "Skills",
+          "icon": "media/skill-icon.svg",
+          "when": "skillManager.showSidebar"
+        }
+      ],
       "explorer": [
         {
-          "id": "skillManagerView",
-          "name": "Skills"
+          "id": "skillManager.explorerView",
+          "name": "Skills",
+          "icon": "media/skill-icon.svg",
+          "when": "!skillManager.showSidebar"
         }
       ]
     },
@@ -53,24 +73,24 @@
       "view/title": [
         {
           "command": "skillManager.refresh",
-          "when": "view == skillManagerView",
+          "when": "view == skillManager.sidebarView || view == skillManager.explorerView",
           "group": "navigation"
         },
         {
           "command": "skillManager.filter",
-          "when": "view == skillManagerView",
+          "when": "view == skillManager.sidebarView || view == skillManager.explorerView",
           "group": "navigation"
         },
         {
           "command": "skillManager.showMarkets",
-          "when": "view == skillManagerView",
+          "when": "view == skillManager.sidebarView || view == skillManager.explorerView",
           "group": "navigation"
         }
       ],
       "view/item/context": [
         {
           "command": "skillManager.deleteSkill",
-          "when": "view == skillManagerView && viewItem == skill",
+          "when": "(view == skillManager.sidebarView || view == skillManager.explorerView) && viewItem == skill",
           "group": "inline"
         }
       ]
@@ -78,6 +98,16 @@
     "configuration": {
       "title": "SkillManager",
       "properties": {
+        "skillManager.location": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "sidebar",
+            "explorer"
+          ],
+          "default": "auto",
+          "description": "Where to show the Skill Manager view. 'auto' attempts to detect the environment."
+        },
         "skillManager.readers": {
           "type": "array",
           "default": [],

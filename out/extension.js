@@ -44,8 +44,31 @@ let treeDataProvider;
 function activate(context) {
     // Create and register tree data provider
     treeDataProvider = new sidebarProvider_1.SkillManagerTreeDataProvider();
-    const treeView = vscode.window.registerTreeDataProvider('skillManagerView', treeDataProvider);
-    context.subscriptions.push(treeView);
+    // Determine placement based on config and environment
+    const updateLocationContext = () => {
+        const config = vscode.workspace.getConfiguration('skillManager');
+        let location = config.get('location', 'auto');
+        if (location === 'auto') {
+            // Heuristic: Antigravity often has issues with custom sidebars, fallback to explorer
+            if (vscode.env.appName.includes('Antigravity')) {
+                location = 'explorer';
+            }
+            else {
+                location = 'sidebar';
+            }
+        }
+        vscode.commands.executeCommand('setContext', 'skillManager.showSidebar', location === 'sidebar');
+    };
+    updateLocationContext();
+    // Update on config change
+    context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('skillManager.location')) {
+            updateLocationContext();
+        }
+    }));
+    // Register provider for BOTH views
+    // The 'when' clause in package.json will control which one is actually visible
+    context.subscriptions.push(vscode.window.registerTreeDataProvider('skillManager.sidebarView', treeDataProvider), vscode.window.registerTreeDataProvider('skillManager.explorerView', treeDataProvider));
     // Register refresh command
     const refreshCmd = vscode.commands.registerCommand('skillManager.refresh', () => {
         treeDataProvider.refresh();
