@@ -90,6 +90,25 @@
             },
             "required": ["id", "name", "globalPath", "projectPath"]
           }
+        },
+        "skillManager.markets": {
+          "type": "array",
+          "default": [],
+          "description": "Skill markets (git repositories). If configured, replaces built-in defaults.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Display name for the market"
+              },
+              "git": {
+                "type": "string",
+                "description": "Git repository path, e.g., 'anthropics/skills' or full URL"
+              }
+            },
+            "required": ["name", "git"]
+          }
         }
       }
     }
