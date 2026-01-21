@@ -44,7 +44,8 @@ let treeDataProvider;
 function activate(context) {
     // Create and register tree data provider
     treeDataProvider = new sidebarProvider_1.SkillManagerTreeDataProvider();
-    vscode.window.registerTreeDataProvider('skillManagerView', treeDataProvider);
+    const treeView = vscode.window.registerTreeDataProvider('skillManagerView', treeDataProvider);
+    context.subscriptions.push(treeView);
     // Register refresh command
     const refreshCmd = vscode.commands.registerCommand('skillManager.refresh', () => {
         treeDataProvider.refresh();

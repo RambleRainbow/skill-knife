@@ -1,6 +1,7 @@
 {
   "name": "skill-manager",
   "displayName": "SkillManager",
+  "publisher": "antigravity",
   "description": "Manage AI agent skills",
   "version": "0.0.1",
   "engines": {
@@ -9,20 +10,13 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onView:skillManagerView"
+  ],
   "main": "./out/extension.js",
   "contributes": {
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "skillManager",
-          "title": "SkillManager",
-          "icon": "$(extensions)"
-        }
-      ]
-    },
     "views": {
-      "skillManager": [
+      "explorer": [
         {
           "id": "skillManagerView",
           "name": "Skills"
@@ -41,7 +35,8 @@
       },
       {
         "command": "skillManager.showMarkets",
-        "title": "Show Markets"
+        "title": "Show Markets",
+        "icon": "$(package)"
       },
       {
         "command": "skillManager.deleteSkill",
@@ -63,6 +58,11 @@
         },
         {
           "command": "skillManager.filter",
+          "when": "view == skillManagerView",
+          "group": "navigation"
+        },
+        {
+          "command": "skillManager.showMarkets",
           "when": "view == skillManagerView",
           "group": "navigation"
         }
@@ -110,7 +110,12 @@
                 "description": "Project-relative skill path, e.g., '.claude/skills'"
               }
             },
-            "required": ["id", "name", "globalPath", "projectPath"]
+            "required": [
+              "id",
+              "name",
+              "globalPath",
+              "projectPath"
+            ]
           }
         },
         "skillManager.markets": {
@@ -129,7 +134,10 @@
                 "description": "Git repository path, e.g., 'anthropics/skills' or full URL"
               }
             },
-            "required": ["name", "git"]
+            "required": [
+              "name",
+              "git"
+            ]
           }
         }
       }

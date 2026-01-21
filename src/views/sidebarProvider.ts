@@ -59,27 +59,13 @@ export class SkillTreeItem extends vscode.TreeItem {
   }
 }
 
-/**
- * Tree item for Markets section
- */
-export class MarketsTreeItem extends vscode.TreeItem {
-  constructor() {
-    super('Markets', vscode.TreeItemCollapsibleState.None);
-    this.iconPath = new vscode.ThemeIcon('package');
-    this.contextValue = 'markets';
-    this.command = {
-      command: 'skillManager.showMarkets',
-      title: 'Show Markets',
-    };
-  }
-}
+
 
 /**
  * TreeDataProvider for the sidebar
  */
 export class SkillManagerTreeDataProvider
-  implements vscode.TreeDataProvider<vscode.TreeItem>
-{
+  implements vscode.TreeDataProvider<vscode.TreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<vscode.TreeItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
@@ -116,18 +102,17 @@ export class SkillManagerTreeDataProvider
     // Filter skills
     const filteredSkills = this.filterText
       ? this.skills.filter(
-          (s) =>
-            s.name.toLowerCase().includes(this.filterText) ||
-            (s.description && s.description.toLowerCase().includes(this.filterText))
-        )
+        (s) =>
+          s.name.toLowerCase().includes(this.filterText) ||
+          (s.description && s.description.toLowerCase().includes(this.filterText))
+      )
       : this.skills;
 
     for (const skill of filteredSkills) {
       items.push(new SkillTreeItem(skill, vscode.TreeItemCollapsibleState.None));
     }
 
-    // Add Markets section at the end
-    items.push(new MarketsTreeItem());
+
 
     return items;
   }

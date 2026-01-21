@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SkillManagerTreeDataProvider = exports.MarketsTreeItem = exports.SkillTreeItem = void 0;
+exports.SkillManagerTreeDataProvider = exports.SkillTreeItem = void 0;
 const vscode = __importStar(require("vscode"));
 const skillScanner_1 = require("../services/skillScanner");
 /**
@@ -89,21 +89,6 @@ class SkillTreeItem extends vscode.TreeItem {
 }
 exports.SkillTreeItem = SkillTreeItem;
 /**
- * Tree item for Markets section
- */
-class MarketsTreeItem extends vscode.TreeItem {
-    constructor() {
-        super('Markets', vscode.TreeItemCollapsibleState.None);
-        this.iconPath = new vscode.ThemeIcon('package');
-        this.contextValue = 'markets';
-        this.command = {
-            command: 'skillManager.showMarkets',
-            title: 'Show Markets',
-        };
-    }
-}
-exports.MarketsTreeItem = MarketsTreeItem;
-/**
  * TreeDataProvider for the sidebar
  */
 class SkillManagerTreeDataProvider {
@@ -140,8 +125,6 @@ class SkillManagerTreeDataProvider {
         for (const skill of filteredSkills) {
             items.push(new SkillTreeItem(skill, vscode.TreeItemCollapsibleState.None));
         }
-        // Add Markets section at the end
-        items.push(new MarketsTreeItem());
         return items;
     }
     getSkills() {

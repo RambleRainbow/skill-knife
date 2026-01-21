@@ -10,7 +10,8 @@ let treeDataProvider: SkillManagerTreeDataProvider;
 export function activate(context: vscode.ExtensionContext) {
   // Create and register tree data provider
   treeDataProvider = new SkillManagerTreeDataProvider();
-  vscode.window.registerTreeDataProvider('skillManagerView', treeDataProvider);
+  const treeView = vscode.window.registerTreeDataProvider('skillManagerView', treeDataProvider);
+  context.subscriptions.push(treeView);
 
   // Register refresh command
   const refreshCmd = vscode.commands.registerCommand('skillManager.refresh', () => {
@@ -68,4 +69,4 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(refreshCmd, showDetailCmd, showMarketsCmd, deleteCmd, filterCmd);
 }
 
-export function deactivate() {}
+export function deactivate() { }
