@@ -38,6 +38,7 @@ const vscode = __importStar(require("vscode"));
 const marketService_1 = require("../services/marketService");
 const installService_1 = require("../services/installService");
 const skillScanner_1 = require("../services/skillScanner");
+const updateService_1 = require("../services/updateService");
 class MarketPanel {
     static currentPanel;
     _panel;
@@ -46,6 +47,7 @@ class MarketPanel {
     _currentMarket;
     _skills = [];
     _loading = false;
+    _searchText = '';
     constructor(panel) {
         this._panel = panel;
         this._markets = (0, marketService_1.getAllMarkets)();
@@ -97,6 +99,15 @@ class MarketPanel {
                 if (message.skillName) {
                     await this._showInstallDialog(message.skillName);
                 }
+                break;
+            case 'update':
+                if (message.skillName) {
+                    await this._showUpdateDialog(message.skillName);
+                }
+                break;
+            case 'search':
+                this._searchText = message.searchText?.toLowerCase() || '';
+                this._updateContent();
                 break;
             case 'refresh':
                 await this._loadSkills();
@@ -153,6 +164,56 @@ class MarketPanel {
             vscode.window.showErrorMessage(`Failed to install ${skill.name}: ${error}`);
         }
     }
+    async _showUpdateDialog(skillName) {
+        const skill = this._skills.find((s) => s.name === skillName);
+        if (!skill) {
+            return;
+        }
+        // Step 1: Select scope
+        const scopeChoice = await vscode.window.showQuickPick([
+            { label: 'Project', description: 'Update in current project', scope: 'project' },
+            { label: 'Global', description: 'Update globally', scope: 'global' },
+        ], { placeHolder: 'Select update scope' });
+        if (!scopeChoice) {
+            return;
+        }
+        // Step 2: Select readers
+        const readers = (0, installService_1.getAvailableReaders)();
+        const readerChoices = readers.map((r) => ({
+            label: r.name,
+            picked: true,
+            reader: r,
+        }));
+        const selectedReaders = await vscode.window.showQuickPick(readerChoices, {
+            placeHolder: 'Select target readers',
+            canPickMany: true,
+        });
+        if (!selectedReaders || selectedReaders.length === 0) {
+            return;
+        }
+        // Update (reinstall)
+        try {
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: `Updating ${skill.name}...`,
+                cancellable: false,
+            }, async () => {
+                await (0, installService_1.installSkill)({
+                    skill,
+                    scope: scopeChoice.scope,
+                    readers: selectedReaders.map((r) => r.reader),
+                });
+            });
+            vscode.window.showInformationMessage(`Successfully updated ${skill.name}`);
+            // Refresh the sidebar
+            vscode.commands.executeCommand('skillManager.refresh');
+            // Update the market panel
+            this._updateContent();
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Failed to update ${skill.name}: ${error}`);
+        }
+    }
     _updateContent() {
         this._panel.webview.html = this._getHtmlContent();
     }
@@ -173,13 +234,32 @@ class MarketPanel {
             skillsHtml = '<div class="empty">No skills found in this market</div>';
         }
         else {
-            skillsHtml = this._skills
-                .map((skill) => {
-                const isInstalled = installedNames.has(skill.name);
-                const buttonHtml = isInstalled
-                    ? '<span class="installed-badge">Installed</span>'
-                    : `<button class="install-btn" onclick="install('${this._escapeHtml(skill.name)}')">Install</button>`;
-                return `
+            // Filter skills by search text
+            const filteredSkills = this._searchText
+                ? this._skills.filter((s) => s.name.toLowerCase().includes(this._searchText) ||
+                    (s.description && s.description.toLowerCase().includes(this._searchText)))
+                : this._skills;
+            if (filteredSkills.length === 0) {
+                skillsHtml = '<div class="empty">No skills match your search</div>';
+            }
+            else {
+                skillsHtml = filteredSkills
+                    .map((skill) => {
+                    const isInstalled = installedNames.has(skill.name);
+                    const hasUpdate = isInstalled && (0, updateService_1.hasUpdateAvailable)(skill.name, installedSkills, this._skills);
+                    let buttonHtml;
+                    if (isInstalled) {
+                        if (hasUpdate) {
+                            buttonHtml = `<button class="update-btn" onclick="update('${this._escapeHtml(skill.name)}')">Update</button>`;
+                        }
+                        else {
+                            buttonHtml = '<span class="installed-badge">Installed</span>';
+                        }
+                    }
+                    else {
+                        buttonHtml = `<button class="install-btn" onclick="install('${this._escapeHtml(skill.name)}')">Install</button>`;
+                    }
+                    return `
             <div class="skill-card">
               <div class="skill-header">
                 <span class="skill-name">${this._escapeHtml(skill.name)}</span>
@@ -188,8 +268,9 @@ class MarketPanel {
               <div class="skill-description">${this._escapeHtml(skill.description || 'No description')}</div>
             </div>
           `;
-            })
-                .join('');
+                })
+                    .join('');
+            }
         }
         return `<!DOCTYPE html>
 <html lang="en">
@@ -264,6 +345,15 @@ class MarketPanel {
       padding: 3px 12px;
       font-size: 0.85em;
     }
+    .update-btn {
+      padding: 3px 12px;
+      font-size: 0.85em;
+      background: var(--vscode-button-secondaryBackground);
+      color: var(--vscode-button-secondaryForeground);
+    }
+    .update-btn:hover {
+      background: var(--vscode-button-secondaryHoverBackground);
+    }
     .installed-badge {
       background: var(--vscode-badge-background);
       color: var(--vscode-badge-foreground);
@@ -276,12 +366,21 @@ class MarketPanel {
       padding: 40px;
       color: var(--vscode-descriptionForeground);
     }
+    .search-box {
+      padding: 5px 10px;
+      background: var(--vscode-input-background);
+      color: var(--vscode-input-foreground);
+      border: 1px solid var(--vscode-input-border);
+      border-radius: 3px;
+      width: 200px;
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>Skill Markets</h1>
     <div class="controls">
+      <input type="text" class="search-box" placeholder="Search skills..." oninput="search(this.value)">
       <select id="marketSelect" onchange="selectMarket(this.value)">
         ${marketOptions}
       </select>
@@ -302,6 +401,14 @@ class MarketPanel {
 
     function install(skillName) {
       vscode.postMessage({ command: 'install', skillName: skillName });
+    }
+
+    function update(skillName) {
+      vscode.postMessage({ command: 'update', skillName: skillName });
+    }
+
+    function search(text) {
+      vscode.postMessage({ command: 'search', searchText: text });
     }
 
     function refresh() {
