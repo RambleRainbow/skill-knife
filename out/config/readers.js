@@ -33,29 +33,56 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.activate = activate;
-exports.deactivate = deactivate;
+exports.DEFAULT_READERS = void 0;
+exports.getReaders = getReaders;
 const vscode = __importStar(require("vscode"));
-const sidebarProvider_1 = require("./views/sidebarProvider");
-let treeDataProvider;
-function activate(context) {
-    // Create and register tree data provider
-    treeDataProvider = new sidebarProvider_1.SkillManagerTreeDataProvider();
-    vscode.window.registerTreeDataProvider('skillManagerView', treeDataProvider);
-    // Register refresh command
-    const refreshCmd = vscode.commands.registerCommand('skillManager.refresh', () => {
-        treeDataProvider.refresh();
-        vscode.window.showInformationMessage('Skills refreshed');
-    });
-    // Register show detail command (placeholder for now)
-    const showDetailCmd = vscode.commands.registerCommand('skillManager.showSkillDetail', (skill) => {
-        vscode.window.showInformationMessage(`Skill: ${skill.name}`);
-    });
-    // Register show markets command (placeholder for now)
-    const showMarketsCmd = vscode.commands.registerCommand('skillManager.showMarkets', () => {
-        vscode.window.showInformationMessage('Markets view coming in Milestone 2');
-    });
-    context.subscriptions.push(refreshCmd, showDetailCmd, showMarketsCmd);
+/**
+ * Built-in default SkillReader configurations
+ */
+exports.DEFAULT_READERS = [
+    {
+        id: 'claude-code',
+        name: 'Claude Code',
+        shortName: 'CC',
+        globalPath: '~/.claude/skills',
+        projectPath: '.claude/skills',
+    },
+    {
+        id: 'codex',
+        name: 'Codex',
+        shortName: 'CX',
+        globalPath: '~/.codex/skills',
+        projectPath: '.codex/skills',
+    },
+    {
+        id: 'gemini-cli',
+        name: 'Gemini CLI',
+        shortName: 'GM',
+        globalPath: '~/.gemini/skills',
+        projectPath: '.gemini/skills',
+    },
+    {
+        id: 'antigravity',
+        name: 'Antigravity',
+        shortName: 'AG',
+        globalPath: '~/.agent/skills',
+        projectPath: '.agent/skills',
+    },
+];
+/**
+ * Get merged readers from default + user configuration
+ */
+function getReaders() {
+    const config = vscode.workspace.getConfiguration('skillManager');
+    const userReaders = config.get('readers') || [];
+    // Merge: user config overrides defaults by id
+    const readerMap = new Map();
+    for (const reader of exports.DEFAULT_READERS) {
+        readerMap.set(reader.id, reader);
+    }
+    for (const reader of userReaders) {
+        readerMap.set(reader.id, { ...readerMap.get(reader.id), ...reader });
+    }
+    return Array.from(readerMap.values());
 }
-function deactivate() { }
-//# sourceMappingURL=extension.js.map
+//# sourceMappingURL=readers.js.map

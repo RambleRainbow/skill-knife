@@ -12,12 +12,47 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "skillManager",
+          "title": "SkillManager",
+          "icon": "$(extensions)"
+        }
+      ]
+    },
+    "views": {
+      "skillManager": [
+        {
+          "id": "skillManagerView",
+          "name": "Skills"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "skill-manager.helloWorld",
-        "title": "Hello World"
+        "command": "skillManager.refresh",
+        "title": "Refresh Skills",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "skillManager.showSkillDetail",
+        "title": "Show Skill Detail"
+      },
+      {
+        "command": "skillManager.showMarkets",
+        "title": "Show Markets"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "skillManager.refresh",
+          "when": "view == skillManagerView",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
