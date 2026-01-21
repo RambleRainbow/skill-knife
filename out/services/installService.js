@@ -35,6 +35,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.installSkill = installSkill;
 exports.getAvailableReaders = getAvailableReaders;
+exports.deleteSkillInstallation = deleteSkillInstallation;
+exports.deleteSkill = deleteSkill;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
@@ -122,5 +124,21 @@ async function installSkill(options) {
  */
 function getAvailableReaders() {
     return (0, readers_1.getReaders)();
+}
+/**
+ * Delete a skill installation
+ */
+function deleteSkillInstallation(installation) {
+    if (fs.existsSync(installation.path)) {
+        fs.rmSync(installation.path, { recursive: true, force: true });
+    }
+}
+/**
+ * Delete all installations of a skill
+ */
+function deleteSkill(skill) {
+    for (const installation of skill.installations) {
+        deleteSkillInstallation(installation);
+    }
 }
 //# sourceMappingURL=installService.js.map

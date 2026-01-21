@@ -42,6 +42,16 @@
       {
         "command": "skillManager.showMarkets",
         "title": "Show Markets"
+      },
+      {
+        "command": "skillManager.deleteSkill",
+        "title": "Delete Skill",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "skillManager.filter",
+        "title": "Filter Skills",
+        "icon": "$(search)"
       }
     ],
     "menus": {
@@ -50,6 +60,18 @@
           "command": "skillManager.refresh",
           "when": "view == skillManagerView",
           "group": "navigation"
+        },
+        {
+          "command": "skillManager.filter",
+          "when": "view == skillManagerView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "skillManager.deleteSkill",
+          "when": "view == skillManagerView && viewItem == skill",
+          "group": "inline"
         }
       ]
     },

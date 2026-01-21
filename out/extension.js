@@ -39,6 +39,7 @@ const vscode = __importStar(require("vscode"));
 const sidebarProvider_1 = require("./views/sidebarProvider");
 const skillDetailPanel_1 = require("./views/skillDetailPanel");
 const marketPanel_1 = require("./views/marketPanel");
+const installService_1 = require("./services/installService");
 let treeDataProvider;
 function activate(context) {
     // Create and register tree data provider
@@ -57,7 +58,27 @@ function activate(context) {
     const showMarketsCmd = vscode.commands.registerCommand('skillManager.showMarkets', () => {
         marketPanel_1.MarketPanel.show();
     });
-    context.subscriptions.push(refreshCmd, showDetailCmd, showMarketsCmd);
+    // Register delete skill command
+    const deleteCmd = vscode.commands.registerCommand('skillManager.deleteSkill', async (item) => {
+        const skill = item.skill;
+        const confirm = await vscode.window.showWarningMessage(`Delete skill "${skill.name}" from all locations?`, { modal: true }, 'Delete');
+        if (confirm === 'Delete') {
+            (0, installService_1.deleteSkill)(skill);
+            treeDataProvider.refresh();
+            vscode.window.showInformationMessage(`Deleted ${skill.name}`);
+        }
+    });
+    // Register filter command
+    const filterCmd = vscode.commands.registerCommand('skillManager.filter', async () => {
+        const input = await vscode.window.showInputBox({
+            placeHolder: 'Filter skills by name or description...',
+            prompt: 'Enter search text (leave empty to clear filter)',
+        });
+        if (input !== undefined) {
+            treeDataProvider.setFilter(input);
+        }
+    });
+    context.subscriptions.push(refreshCmd, showDetailCmd, showMarketsCmd, deleteCmd, filterCmd);
 }
 function deactivate() { }
 //# sourceMappingURL=extension.js.map

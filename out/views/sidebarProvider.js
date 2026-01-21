@@ -110,8 +110,13 @@ class SkillManagerTreeDataProvider {
     _onDidChangeTreeData = new vscode.EventEmitter();
     onDidChangeTreeData = this._onDidChangeTreeData.event;
     skills = [];
+    filterText = '';
     constructor() {
         this.refresh();
+    }
+    setFilter(text) {
+        this.filterText = text.toLowerCase();
+        this._onDidChangeTreeData.fire(undefined);
     }
     refresh() {
         this.skills = (0, skillScanner_1.scanSkills)();
@@ -127,7 +132,12 @@ class SkillManagerTreeDataProvider {
         }
         // Root level: skills + markets
         const items = [];
-        for (const skill of this.skills) {
+        // Filter skills
+        const filteredSkills = this.filterText
+            ? this.skills.filter((s) => s.name.toLowerCase().includes(this.filterText) ||
+                (s.description && s.description.toLowerCase().includes(this.filterText)))
+            : this.skills;
+        for (const skill of filteredSkills) {
             items.push(new SkillTreeItem(skill, vscode.TreeItemCollapsibleState.None));
         }
         // Add Markets section at the end

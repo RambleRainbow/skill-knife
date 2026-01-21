@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { SkillReader, SkillScope } from '../types';
+import { Skill, SkillInstallation, SkillReader, SkillScope } from '../types';
 import { getReaders } from '../config/readers';
 import { MarketSkill, getCacheDir } from './marketService';
 
@@ -107,4 +107,22 @@ export async function installSkill(options: InstallOptions): Promise<void> {
  */
 export function getAvailableReaders(): SkillReader[] {
   return getReaders();
+}
+
+/**
+ * Delete a skill installation
+ */
+export function deleteSkillInstallation(installation: SkillInstallation): void {
+  if (fs.existsSync(installation.path)) {
+    fs.rmSync(installation.path, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Delete all installations of a skill
+ */
+export function deleteSkill(skill: Skill): void {
+  for (const installation of skill.installations) {
+    deleteSkillInstallation(installation);
+  }
 }
