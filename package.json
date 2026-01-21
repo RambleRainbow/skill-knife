@@ -52,6 +52,46 @@
           "group": "navigation"
         }
       ]
+    },
+    "configuration": {
+      "title": "SkillManager",
+      "properties": {
+        "skillManager.readers": {
+          "type": "array",
+          "default": [],
+          "description": "Custom SkillReader configurations. These are merged with built-in defaults.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier, e.g., 'claude-code'"
+              },
+              "name": {
+                "type": "string",
+                "description": "Display name, e.g., 'Claude Code'"
+              },
+              "shortName": {
+                "type": "string",
+                "description": "Short label for UI tags, e.g., 'CC'"
+              },
+              "version": {
+                "type": "string",
+                "description": "Version constraint, e.g., '>=1.0'"
+              },
+              "globalPath": {
+                "type": "string",
+                "description": "Global skill path, e.g., '~/.claude/skills'"
+              },
+              "projectPath": {
+                "type": "string",
+                "description": "Project-relative skill path, e.g., '.claude/skills'"
+              }
+            },
+            "required": ["id", "name", "globalPath", "projectPath"]
+          }
+        }
+      }
     }
   },
   "scripts": {
