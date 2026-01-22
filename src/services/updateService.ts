@@ -3,6 +3,8 @@ import * as fs from 'fs';
 import { Skill } from '../types';
 import { MarketSkill, fetchMarketSkills, getAllMarkets } from './marketService';
 import { scanSkills } from './skillScanner';
+import { installSkill, getAvailableReaders } from './installService';
+import { SkillScope } from '../types';
 
 export interface SkillUpdateInfo {
   skill: Skill;
@@ -101,4 +103,47 @@ export function hasUpdateAvailable(
   const latestCommit = marketSkill.commitHash;
 
   return !!(installedCommit && latestCommit && installedCommit !== latestCommit);
+}
+
+/**
+ * Update all skills that have updates available
+ */
+export async function updateAllSkills(
+  progressCallback?: (message: string) => void
+): Promise<string[]> {
+  const updates = await checkForUpdates();
+  const updatable = updates.filter((u) => u.hasUpdate);
+  const updatedNames: string[] = [];
+  const readers = getAvailableReaders();
+
+  for (const info of updatable) {
+    if (progressCallback) {
+      progressCallback(`Updating ${info.skill.name}...`);
+    }
+
+    // Group installations by scope
+    const scopeMap = new Map<SkillScope, string[]>();
+
+    for (const install of info.skill.installations) {
+      if (!scopeMap.has(install.scope)) {
+        scopeMap.set(install.scope, []);
+      }
+      scopeMap.get(install.scope)!.push(install.readerId);
+    }
+
+    // Perform updates for each scope
+    for (const [scope, readerIds] of scopeMap.entries()) {
+      const targetReaders = readers.filter((r) => readerIds.includes(r.id));
+      if (targetReaders.length > 0) {
+        await installSkill({
+          skill: info.marketSkill,
+          scope,
+          readers: targetReaders,
+        });
+      }
+    }
+    updatedNames.push(info.skill.name);
+  }
+
+  return updatedNames;
 }

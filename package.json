@@ -59,6 +59,21 @@
         "icon": "$(package)"
       },
       {
+        "command": "skillManager.updateAll",
+        "title": "Update All Skills",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "skillManager.updateAll",
+        "title": "Update All Skills",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "skillManager.updateAll",
+        "title": "Update All Skills",
+        "icon": "$(cloud-download)"
+      },
+      {
         "command": "skillManager.deleteSkill",
         "title": "Delete Skill",
         "icon": "$(trash)"
@@ -83,6 +98,11 @@
         },
         {
           "command": "skillManager.showMarkets",
+          "when": "view == skillManager.sidebarView || view == skillManager.explorerView",
+          "group": "navigation"
+        },
+        {
+          "command": "skillManager.updateAll",
           "when": "view == skillManager.sidebarView || view == skillManager.explorerView",
           "group": "navigation"
         }

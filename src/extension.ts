@@ -4,6 +4,7 @@ import { SkillDetailPanel } from './views/skillDetailPanel';
 import { MarketPanel } from './views/marketPanel';
 import { Skill } from './types';
 import { deleteSkill } from './services/installService';
+import { updateAllSkills } from './services/updateService';
 
 let treeDataProvider: SkillManagerTreeDataProvider;
 
@@ -96,7 +97,33 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
-  context.subscriptions.push(refreshCmd, showDetailCmd, showMarketsCmd, deleteCmd, filterCmd);
+  // Register update all command
+  const updateAllCmd = vscode.commands.registerCommand('skillManager.updateAll', async () => {
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'Checking for updates...',
+        cancellable: false,
+      },
+      async (progress) => {
+        try {
+          const updated = await updateAllSkills((message) => progress.report({ message }));
+          if (updated.length > 0) {
+            vscode.window.showInformationMessage(
+              `Updated ${updated.length} skills: ${updated.join(', ')}`
+            );
+            treeDataProvider.refresh();
+          } else {
+            vscode.window.showInformationMessage('All skills are up to date');
+          }
+        } catch (error) {
+          vscode.window.showErrorMessage(`Failed to update skills: ${error}`);
+        }
+      }
+    );
+  });
+
+  context.subscriptions.push(refreshCmd, showDetailCmd, showMarketsCmd, deleteCmd, filterCmd, updateAllCmd);
 }
 
 export function deactivate() { }

@@ -102,7 +102,112 @@ export class MarketPanel {
       case 'refresh':
         await this._loadSkills();
         break;
+
+      case 'installAll':
+        await this._installAllVisible();
+        break;
     }
+  }
+
+  private async _installAllVisible() {
+    // 1. Identify skills to install (visible & not installed)
+    const installedSkills = scanSkills();
+    const installedNames = new Set(installedSkills.map((s) => s.name));
+
+    let visibleSkills = this._skills;
+    if (this._searchText) {
+      visibleSkills = this._skills.filter(
+        (s) =>
+          s.name.toLowerCase().includes(this._searchText) ||
+          (s.description && s.description.toLowerCase().includes(this._searchText))
+      );
+    }
+
+    const skillsToInstall = visibleSkills.filter((s) => !installedNames.has(s.name));
+
+    if (skillsToInstall.length === 0) {
+      vscode.window.showInformationMessage('No uninstalled skills found in current view.');
+      return;
+    }
+
+    const confirm = await vscode.window.showInformationMessage(
+      `Install ${skillsToInstall.length} skills?`,
+      'Yes',
+      'No'
+    );
+
+    if (confirm !== 'Yes') {
+      return;
+    }
+
+    // 2. Prompt for settings once (Scope & Readers)
+    const scopeChoice = await vscode.window.showQuickPick(
+      [
+        { label: 'Project', description: 'Install to current project', scope: 'project' as const },
+        { label: 'Global', description: 'Install globally', scope: 'global' as const },
+      ],
+      { placeHolder: 'Select installation scope for ALL selected skills' }
+    );
+
+    if (!scopeChoice) {
+      return;
+    }
+
+    const readers = getAvailableReaders();
+    const readerChoices = readers.map((r) => ({
+      label: r.name,
+      picked: true,
+      reader: r,
+    }));
+
+    const selectedReaders = await vscode.window.showQuickPick(readerChoices, {
+      placeHolder: 'Select target readers for ALL selected skills',
+      canPickMany: true,
+    });
+
+    if (!selectedReaders || selectedReaders.length === 0) {
+      return;
+    }
+
+    // 3. Batched Installation
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'Batch Installing Skills...',
+        cancellable: false,
+      },
+      async (progress) => {
+        let count = 0;
+        const total = skillsToInstall.length;
+        const errors: string[] = [];
+
+        for (const skill of skillsToInstall) {
+          progress.report({ message: `Installing ${skill.name} (${++count}/${total})...` });
+          try {
+            await installSkill({
+              skill,
+              scope: scopeChoice.scope,
+              readers: selectedReaders.map((r) => r.reader),
+            });
+          } catch (error) {
+            console.error(`Failed to install ${skill.name}:`, error);
+            errors.push(`${skill.name}: ${error}`);
+          }
+        }
+
+        if (errors.length > 0) {
+          vscode.window.showErrorMessage(
+            `Installed ${total - errors.length}/${total} skills. Failures: ${errors.join(', ')}`
+          );
+        } else {
+          vscode.window.showInformationMessage(`Successfully installed ${total} skills.`);
+        }
+      }
+    );
+
+    // Refresh UI
+    vscode.commands.executeCommand('skillManager.refresh');
+    this._updateContent();
   }
 
   private async _showInstallDialog(skillName: string) {
@@ -259,10 +364,10 @@ export class MarketPanel {
       // Filter skills by search text
       const filteredSkills = this._searchText
         ? this._skills.filter(
-            (s) =>
-              s.name.toLowerCase().includes(this._searchText) ||
-              (s.description && s.description.toLowerCase().includes(this._searchText))
-          )
+          (s) =>
+            s.name.toLowerCase().includes(this._searchText) ||
+            (s.description && s.description.toLowerCase().includes(this._searchText))
+        )
         : this._skills;
 
       if (filteredSkills.length === 0) {
@@ -410,6 +515,7 @@ export class MarketPanel {
       <select id="marketSelect" onchange="selectMarket(this.value)">
         ${marketOptions}
       </select>
+      <button onclick="installAll()">Install All</button>
       <button onclick="refresh()">Refresh</button>
     </div>
   </div>
@@ -439,6 +545,10 @@ export class MarketPanel {
 
     function refresh() {
       vscode.postMessage({ command: 'refresh' });
+    }
+
+    function installAll() {
+      vscode.postMessage({ command: 'installAll' });
     }
   </script>
 </body>
