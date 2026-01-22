@@ -11,35 +11,16 @@
     "Other"
   ],
   "activationEvents": [
-    "onView:skillManager.sidebarView",
-    "onView:skillManager.explorerView"
+    "onView:skillManagerView"
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "skillManagerContainer",
-          "title": "SkillManager",
-          "icon": "media/skill-icon.svg"
-        }
-      ]
-    },
     "views": {
-      "skillManagerContainer": [
-        {
-          "id": "skillManager.sidebarView",
-          "name": "Skills",
-          "icon": "media/skill-icon.svg",
-          "when": "skillManager.showSidebar"
-        }
-      ],
       "explorer": [
         {
-          "id": "skillManager.explorerView",
+          "id": "skillManagerView",
           "name": "Skills",
-          "icon": "media/skill-icon.svg",
-          "when": "!skillManager.showSidebar"
+          "icon": "media/skill-icon.svg"
         }
       ]
     },
@@ -93,24 +74,24 @@
         },
         {
           "command": "skillManager.filter",
-          "when": "view == skillManager.sidebarView || view == skillManager.explorerView",
+          "when": "view == skillManagerView",
           "group": "navigation"
         },
         {
           "command": "skillManager.showMarkets",
-          "when": "view == skillManager.sidebarView || view == skillManager.explorerView",
+          "when": "view == skillManagerView",
           "group": "navigation"
         },
         {
           "command": "skillManager.updateAll",
-          "when": "view == skillManager.sidebarView || view == skillManager.explorerView",
+          "when": "view == skillManagerView",
           "group": "navigation"
         }
       ],
       "view/item/context": [
         {
           "command": "skillManager.deleteSkill",
-          "when": "(view == skillManager.sidebarView || view == skillManager.explorerView) && viewItem == skill",
+          "when": "view == skillManagerView && viewItem == skill",
           "group": "inline"
         }
       ]
