@@ -270,9 +270,7 @@ export class MarketPanel {
           cancellable: false,
         },
         async () => {
-          // Attempt to remove from Universal (most likely) and Project
-          // We try both commands to ensure cleanup, ignoring errors if one is missing
-          try { await runOpenSkills(['remove', skillName, '--universal']); } catch (e) { }
+          // Attempt to remove
           try { await runOpenSkills(['remove', skillName]); } catch (e) { }
         }
       );
