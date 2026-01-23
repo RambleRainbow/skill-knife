@@ -252,16 +252,6 @@ export class MarketPanel {
   }
 
   private async _showUninstallDialog(skillName: string) {
-    const confirm = await vscode.window.showWarningMessage(
-      `Are you sure you want to uninstall ${skillName}?`,
-      { modal: true },
-      'Uninstall'
-    );
-
-    if (confirm !== 'Uninstall') {
-      return;
-    }
-
     try {
       await vscode.window.withProgress(
         {
