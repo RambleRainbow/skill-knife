@@ -1,4 +1,4 @@
-# SkillManager
+# SkillKnife
 
 A VSCode extension to browse and manage AI agent skills installed on your system.
 
@@ -16,7 +16,7 @@ A VSCode extension to browse and manage AI agent skills installed on your system
 
 ## Usage
 
-1. Open the SkillManager view from the activity bar
+1. Open the SkillKnife view from the activity bar
 2. Click any skill to see its details
 3. Click "Markets" to browse available skills
 4. Use the search icon to filter skills in sidebar
@@ -32,7 +32,7 @@ Add custom readers in `settings.json`:
 
 ```json
 {
-  "skillManager.readers": [
+  "skillKnife.readers": [
     {
       "id": "my-agent",
       "name": "My Agent",
@@ -50,7 +50,7 @@ Add custom skill markets:
 
 ```json
 {
-  "skillManager.markets": [
+  "skillKnife.markets": [
     {
       "name": "My Skills",
       "git": "myorg/my-skills"

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { SkillManagerTreeDataProvider, SkillTreeItem } from './views/sidebarProvider';
+import { SkillKnifeTreeDataProvider, SkillTreeItem } from './views/sidebarProvider';
 import { SkillDetailPanel } from './views/skillDetailPanel';
 import { MarketPanel } from './views/marketPanel';
 import { Skill } from './types';
@@ -7,26 +7,26 @@ import { deleteSkill } from './services/installService';
 import { updateAllSkills } from './services/updateService';
 import { initCliService, runOpenSkills, getInstallSource } from './services/cliService';
 
-let treeDataProvider: SkillManagerTreeDataProvider;
+let treeDataProvider: SkillKnifeTreeDataProvider;
 
 export function activate(context: vscode.ExtensionContext) {
   // Initialize CLI Service
   initCliService(context);
 
   // Create and register tree data provider
-  treeDataProvider = new SkillManagerTreeDataProvider();
-  const treeView = vscode.window.registerTreeDataProvider('skillManagerView', treeDataProvider);
+  treeDataProvider = new SkillKnifeTreeDataProvider();
+  const treeView = vscode.window.registerTreeDataProvider('skillKnifeView', treeDataProvider);
   context.subscriptions.push(treeView);
 
   // Register refresh command
-  const refreshCmd = vscode.commands.registerCommand('skillManager.refresh', () => {
+  const refreshCmd = vscode.commands.registerCommand('skillKnife.refresh', () => {
     treeDataProvider.refresh();
     vscode.window.showInformationMessage('Skills refreshed');
   });
 
   // Register show detail command
   const showDetailCmd = vscode.commands.registerCommand(
-    'skillManager.showSkillDetail',
+    'skillKnife.showSkillDetail',
     (skill: Skill) => {
       SkillDetailPanel.show(skill);
     }
@@ -34,7 +34,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register show markets command
   const showMarketsCmd = vscode.commands.registerCommand(
-    'skillManager.showMarkets',
+    'skillKnife.showMarkets',
     () => {
       MarketPanel.show();
     }
@@ -42,7 +42,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register delete skill command
   const deleteCmd = vscode.commands.registerCommand(
-    'skillManager.deleteSkill',
+    'skillKnife.deleteSkill',
     async (item: SkillTreeItem) => {
       const skill = item.skill;
       const confirm = await vscode.window.showWarningMessage(
@@ -60,7 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Register filter command
-  const filterCmd = vscode.commands.registerCommand('skillManager.filter', async () => {
+  const filterCmd = vscode.commands.registerCommand('skillKnife.filter', async () => {
     const input = await vscode.window.showInputBox({
       placeHolder: 'Filter skills by name or description...',
       prompt: 'Enter search text (leave empty to clear filter)',
@@ -72,7 +72,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   // Register update all command
-  const updateAllCmd = vscode.commands.registerCommand('skillManager.updateAll', async () => {
+  const updateAllCmd = vscode.commands.registerCommand('skillKnife.updateAll', async () => {
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
@@ -100,19 +100,19 @@ export function activate(context: vscode.ExtensionContext) {
   // Handle configuration changes
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(e => {
-      if (e.affectsConfiguration('skillManager.defaultGrouping')) {
-        const mode = vscode.workspace.getConfiguration('skillManager').get<string>('defaultGrouping') as 'none' | 'scope';
+      if (e.affectsConfiguration('skillKnife.defaultGrouping')) {
+        const mode = vscode.workspace.getConfiguration('skillKnife').get<string>('defaultGrouping') as 'none' | 'scope';
         treeDataProvider.setGrouping(mode || 'none');
       }
     })
   );
 
   // Initialize grouping from config
-  const initialGrouping = vscode.workspace.getConfiguration('skillManager').get<string>('defaultGrouping') as 'none' | 'scope';
+  const initialGrouping = vscode.workspace.getConfiguration('skillKnife').get<string>('defaultGrouping') as 'none' | 'scope';
   treeDataProvider.setGrouping(initialGrouping || 'none');
 
   // Register delete group command
-  const deleteGroupCmd = vscode.commands.registerCommand('skillManager.deleteGroup', async (item: any) => {
+  const deleteGroupCmd = vscode.commands.registerCommand('skillKnife.deleteGroup', async (item: any) => {
     // item is GroupingItem from sidebarProvider
     if (item && item.contextValue === 'skillGroup') {
       await treeDataProvider.deleteGroup(item);
@@ -120,7 +120,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   // Register open repo command
-  const openRepoCmd = vscode.commands.registerCommand('skillManager.openRepo', async (item: SkillTreeItem) => {
+  const openRepoCmd = vscode.commands.registerCommand('skillKnife.openRepo', async (item: SkillTreeItem) => {
     const url = item.skill.metadata?.repoUrl;
     if (url) {
       vscode.env.openExternal(vscode.Uri.parse(url));
@@ -130,7 +130,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   // Project Commands
-  const installProjectCmd = vscode.commands.registerCommand('skillManager.installProject', async (item: SkillTreeItem) => {
+  const installProjectCmd = vscode.commands.registerCommand('skillKnife.installProject', async (item: SkillTreeItem) => {
     try {
       const source = getInstallSource(item.skill);
       await runOpenSkills(['install', source]);
@@ -141,7 +141,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
-  const uninstallProjectCmd = vscode.commands.registerCommand('skillManager.uninstallProject', async (item: SkillTreeItem) => {
+  const uninstallProjectCmd = vscode.commands.registerCommand('skillKnife.uninstallProject', async (item: SkillTreeItem) => {
     try {
       await runOpenSkills(['remove', item.skill.name]);
       vscode.window.showInformationMessage(`Uninstalled ${item.skill.name} from Project`);
@@ -150,7 +150,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   // Global Commands
-  const installGlobalCmd = vscode.commands.registerCommand('skillManager.installGlobal', async (_item: SkillTreeItem) => {
+  const installGlobalCmd = vscode.commands.registerCommand('skillKnife.installGlobal', async (_item: SkillTreeItem) => {
     // Global installation disabled - visual only
     /*
     try {
@@ -162,7 +162,7 @@ export function activate(context: vscode.ExtensionContext) {
     */
   });
 
-  const uninstallGlobalCmd = vscode.commands.registerCommand('skillManager.uninstallGlobal', async (_item: SkillTreeItem) => {
+  const uninstallGlobalCmd = vscode.commands.registerCommand('skillKnife.uninstallGlobal', async (_item: SkillTreeItem) => {
     // Global uninstallation disabled - visual only
     /*
     try {

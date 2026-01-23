@@ -9,7 +9,7 @@ let outputChannel: vscode.OutputChannel | undefined;
  * Initialize CLI service
  */
 export function initCliService(context: vscode.ExtensionContext) {
-    outputChannel = vscode.window.createOutputChannel('Skill Manager CLI');
+    outputChannel = vscode.window.createOutputChannel('Skill Knife CLI');
     context.subscriptions.push(outputChannel);
 }
 

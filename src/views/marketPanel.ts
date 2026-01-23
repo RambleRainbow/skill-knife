@@ -181,7 +181,7 @@ export class MarketPanel {
     );
 
     // Refresh UI
-    vscode.commands.executeCommand('skillManager.refresh');
+    vscode.commands.executeCommand('skillKnife.refresh');
     this._updateContent();
   }
 
@@ -209,7 +209,7 @@ export class MarketPanel {
       vscode.window.showInformationMessage(`Successfully installed ${skill.name} (Universal)`);
 
       // Refresh the sidebar
-      vscode.commands.executeCommand('skillManager.refresh');
+      vscode.commands.executeCommand('skillKnife.refresh');
 
       // Update the market panel to show installed status
       this._updateContent();
@@ -242,7 +242,7 @@ export class MarketPanel {
       vscode.window.showInformationMessage(`Successfully updated ${skill.name}`);
 
       // Refresh the sidebar
-      vscode.commands.executeCommand('skillManager.refresh');
+      vscode.commands.executeCommand('skillKnife.refresh');
 
       // Update the market panel
       this._updateContent();
@@ -266,7 +266,7 @@ export class MarketPanel {
       );
 
       vscode.window.showInformationMessage(`Successfully uninstalled ${skillName}`);
-      vscode.commands.executeCommand('skillManager.refresh');
+      vscode.commands.executeCommand('skillKnife.refresh');
       this._updateContent();
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to uninstall ${skillName}: ${error}`);

@@ -39,7 +39,7 @@ export const DEFAULT_READERS: SkillReader[] = [
  * Get merged readers from default + user configuration
  */
 export function getReaders(): SkillReader[] {
-  const config = vscode.workspace.getConfiguration('skillManager');
+  const config = vscode.workspace.getConfiguration('skillKnife');
   const userReaders = config.get<SkillReader[]>('readers') || [];
 
   // Merge: user config overrides defaults by id

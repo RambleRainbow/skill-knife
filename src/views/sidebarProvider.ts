@@ -35,7 +35,7 @@ export class SkillTreeItem extends vscode.TreeItem {
 
     // Command to show detail on click
     this.command = {
-      command: 'skillManager.showSkillDetail',
+      command: 'skillKnife.showSkillDetail',
       title: 'Show Skill Detail',
       arguments: [skill],
     };
@@ -64,7 +64,7 @@ export class GroupingItem extends vscode.TreeItem {
 /**
  * TreeDataProvider for the sidebar
  */
-export class SkillManagerTreeDataProvider
+export class SkillKnifeTreeDataProvider
   implements vscode.TreeDataProvider<vscode.TreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<vscode.TreeItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
