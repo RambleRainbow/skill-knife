@@ -1,6 +1,6 @@
 {
-  "name": "skill-manager",
-  "displayName": "SkillManager",
+  "name": "skill-knife",
+  "displayName": "SkillKnife",
   "publisher": "antigravity",
   "description": "Manage AI agent skills",
   "version": "0.0.1",
