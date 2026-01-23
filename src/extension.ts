@@ -158,7 +158,8 @@ export function activate(context: vscode.ExtensionContext) {
 
   const uninstallGlobalCmd = vscode.commands.registerCommand('skillManager.uninstallGlobal', async (item: SkillTreeItem) => {
     try {
-      await runOpenSkills(['remove', item.skill.name, '--global']);
+      const source = getInstallSource(item.skill);
+      await runOpenSkills(['remove', source]);
       vscode.window.showInformationMessage(`Uninstalled ${item.skill.name} Globally`);
       treeDataProvider.refresh();
     } catch (e) { }
