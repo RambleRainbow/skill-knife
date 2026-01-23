@@ -1,15 +1,18 @@
 import * as vscode from 'vscode';
-import * as cp from 'child_process';
 import { SkillManagerTreeDataProvider, SkillTreeItem } from './views/sidebarProvider';
 import { SkillDetailPanel } from './views/skillDetailPanel';
 import { MarketPanel } from './views/marketPanel';
 import { Skill } from './types';
 import { deleteSkill } from './services/installService';
 import { updateAllSkills } from './services/updateService';
+import { initCliService, runOpenSkills, getInstallSource } from './services/cliService';
 
 let treeDataProvider: SkillManagerTreeDataProvider;
 
 export function activate(context: vscode.ExtensionContext) {
+  // Initialize CLI Service
+  initCliService(context);
+
   // Create and register tree data provider
   treeDataProvider = new SkillManagerTreeDataProvider();
   const treeView = vscode.window.registerTreeDataProvider('skillManagerView', treeDataProvider);
@@ -188,67 +191,3 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() { }
-
-/**
- * Run openskills CLI command
- */
-function runOpenSkills(args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: `Running: openskills ${args.join(' ')}`,
-        cancellable: false,
-      },
-      async (_) => {
-        const cmd = 'npx openskills';
-
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        const cwd = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0].uri.fsPath : undefined;
-
-        cp.exec(`${cmd} ${args.join(' ')}`, { cwd }, (error, stdout, stderr) => {
-          if (error) {
-            vscode.window.showErrorMessage(`OpenSkills failed: ${error.message}\n${stderr}`);
-            reject(error);
-          } else {
-            console.log(stdout);
-            resolve();
-          }
-        });
-      }
-    );
-  });
-}
-
-/**
- * Extract install source (owner/repo/subpath) from skill metadata
- */
-function getInstallSource(skill: Skill): string {
-  if (!skill.metadata || !skill.metadata.repoUrl) {
-    return skill.name; // Fallback
-  }
-
-  try {
-    // Extract owner/repo from repoUrl
-    // Matches github.com/owner/repo or just owner/repo
-    const repoMatch = skill.metadata.repoUrl.match(/github\.com\/([^\/]+\/[^\/]+)/) ||
-      skill.metadata.repoUrl.match(/^([^\/]+\/[^\/]+)$/);
-
-    if (repoMatch) {
-      let ownerRepo = repoMatch[1];
-      if (ownerRepo.endsWith('.git')) {
-        ownerRepo = ownerRepo.slice(0, -4);
-      }
-
-      const subpath = skill.metadata.subpath || '';
-      // Construct: owner/repo/subpath
-      const cleanSubpath = subpath.replace(/^\//, ''); // Remove leading slash
-
-      return cleanSubpath ? `${ownerRepo}/${cleanSubpath}` : ownerRepo;
-    }
-
-    return skill.metadata.repoUrl; // Fallback to full URL
-  } catch (e) {
-    return skill.name;
-  }
-}

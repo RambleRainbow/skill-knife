@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import { Market } from '../types';
 import { MarketSkill, fetchMarketSkills, getAllMarkets } from '../services/marketService';
-import { installSkill, getAvailableReaders } from '../services/installService';
 import { scanSkills } from '../services/skillScanner';
 import { hasUpdateAvailable } from '../services/updateService';
+import { runOpenSkills, getInstallSource } from '../services/cliService';
 
 export class MarketPanel {
   public static currentPanel: MarketPanel | undefined;
@@ -140,36 +140,7 @@ export class MarketPanel {
       return;
     }
 
-    // 2. Prompt for settings once (Scope & Readers)
-    const scopeChoice = await vscode.window.showQuickPick(
-      [
-        { label: 'Project', description: 'Install to current project', scope: 'project' as const },
-        { label: 'Global', description: 'Install globally', scope: 'global' as const },
-      ],
-      { placeHolder: 'Select installation scope for ALL selected skills' }
-    );
-
-    if (!scopeChoice) {
-      return;
-    }
-
-    const readers = getAvailableReaders();
-    const readerChoices = readers.map((r) => ({
-      label: r.name,
-      picked: true,
-      reader: r,
-    }));
-
-    const selectedReaders = await vscode.window.showQuickPick(readerChoices, {
-      placeHolder: 'Select target readers for ALL selected skills',
-      canPickMany: true,
-    });
-
-    if (!selectedReaders || selectedReaders.length === 0) {
-      return;
-    }
-
-    // 3. Batched Installation
+    // 2. Batched Installation
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
@@ -184,11 +155,11 @@ export class MarketPanel {
         for (const skill of skillsToInstall) {
           progress.report({ message: `Installing ${skill.name} (${++count}/${total})...` });
           try {
-            await installSkill({
-              skill,
-              scope: scopeChoice.scope,
-              readers: selectedReaders.map((r) => r.reader),
-            });
+            const source = getInstallSource(skill);
+            // 1. Project Install
+            await runOpenSkills(['install', source]);
+            // 2. Universal Install
+            await runOpenSkills(['install', source, '--universal']);
           } catch (error) {
             console.error(`Failed to install ${skill.name}:`, error);
             errors.push(`${skill.name}: ${error}`);
@@ -216,37 +187,7 @@ export class MarketPanel {
       return;
     }
 
-    // Step 1: Select scope
-    const scopeChoice = await vscode.window.showQuickPick(
-      [
-        { label: 'Project', description: 'Install to current project', scope: 'project' as const },
-        { label: 'Global', description: 'Install globally', scope: 'global' as const },
-      ],
-      { placeHolder: 'Select installation scope' }
-    );
-
-    if (!scopeChoice) {
-      return;
-    }
-
-    // Step 2: Select readers
-    const readers = getAvailableReaders();
-    const readerChoices = readers.map((r) => ({
-      label: r.name,
-      picked: true,
-      reader: r,
-    }));
-
-    const selectedReaders = await vscode.window.showQuickPick(readerChoices, {
-      placeHolder: 'Select target readers',
-      canPickMany: true,
-    });
-
-    if (!selectedReaders || selectedReaders.length === 0) {
-      return;
-    }
-
-    // Install
+    // Direct Install (Project + Universal)
     try {
       await vscode.window.withProgress(
         {
@@ -255,15 +196,15 @@ export class MarketPanel {
           cancellable: false,
         },
         async () => {
-          await installSkill({
-            skill,
-            scope: scopeChoice.scope,
-            readers: selectedReaders.map((r) => r.reader),
-          });
+          const source = getInstallSource(skill);
+          // 1. Project Install
+          await runOpenSkills(['install', source]);
+          // 2. Universal Install
+          await runOpenSkills(['install', source, '--universal']);
         }
       );
 
-      vscode.window.showInformationMessage(`Successfully installed ${skill.name}`);
+      vscode.window.showInformationMessage(`Successfully installed ${skill.name} (Project & Universal)`);
 
       // Refresh the sidebar
       vscode.commands.executeCommand('skillManager.refresh');
@@ -281,37 +222,7 @@ export class MarketPanel {
       return;
     }
 
-    // Step 1: Select scope
-    const scopeChoice = await vscode.window.showQuickPick(
-      [
-        { label: 'Project', description: 'Update in current project', scope: 'project' as const },
-        { label: 'Global', description: 'Update globally', scope: 'global' as const },
-      ],
-      { placeHolder: 'Select update scope' }
-    );
-
-    if (!scopeChoice) {
-      return;
-    }
-
-    // Step 2: Select readers
-    const readers = getAvailableReaders();
-    const readerChoices = readers.map((r) => ({
-      label: r.name,
-      picked: true,
-      reader: r,
-    }));
-
-    const selectedReaders = await vscode.window.showQuickPick(readerChoices, {
-      placeHolder: 'Select target readers',
-      canPickMany: true,
-    });
-
-    if (!selectedReaders || selectedReaders.length === 0) {
-      return;
-    }
-
-    // Update (reinstall)
+    // Direct Update (Re-install Project + Universal)
     try {
       await vscode.window.withProgress(
         {
@@ -320,11 +231,11 @@ export class MarketPanel {
           cancellable: false,
         },
         async () => {
-          await installSkill({
-            skill,
-            scope: scopeChoice.scope,
-            readers: selectedReaders.map((r) => r.reader),
-          });
+          const source = getInstallSource(skill);
+          // 1. Project Install
+          await runOpenSkills(['install', source]);
+          // 2. Universal Install
+          await runOpenSkills(['install', source, '--universal']);
         }
       );
 
