@@ -13,6 +13,10 @@ export const DEFAULT_MARKETS: Market[] = [
     name: 'Superpowers',
     git: 'obra/superpowers',
   },
+  {
+    name: 'Vercel Labs',
+    git: 'vercel-labs/agent-browser',
+  },
 ];
 
 /**

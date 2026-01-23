@@ -147,22 +147,28 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   // Global Commands
-  const installGlobalCmd = vscode.commands.registerCommand('skillManager.installGlobal', async (item: SkillTreeItem) => {
+  const installGlobalCmd = vscode.commands.registerCommand('skillManager.installGlobal', async (_item: SkillTreeItem) => {
+    // Global installation disabled - visual only
+    /*
     try {
       const source = getInstallSource(item.skill);
       await runOpenSkills(['install', source, '--global']);
       vscode.window.showInformationMessage(`Installed ${item.skill.name} Globally`);
       treeDataProvider.refresh();
     } catch (e) { }
+    */
   });
 
-  const uninstallGlobalCmd = vscode.commands.registerCommand('skillManager.uninstallGlobal', async (item: SkillTreeItem) => {
+  const uninstallGlobalCmd = vscode.commands.registerCommand('skillManager.uninstallGlobal', async (_item: SkillTreeItem) => {
+    // Global uninstallation disabled - visual only
+    /*
     try {
       const source = getInstallSource(item.skill);
       await runOpenSkills(['remove', source]);
       vscode.window.showInformationMessage(`Uninstalled ${item.skill.name} Globally`);
       treeDataProvider.refresh();
     } catch (e) { }
+    */
   });
 
   context.subscriptions.push(
