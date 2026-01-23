@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Skill } from '../types';
-import { scanSkills, getReaderById } from '../services/skillScanner';
+import { scanSkills } from '../services/skillScanner';
 
 /**
  * Tree item representing a skill in the sidebar
@@ -12,10 +12,26 @@ export class SkillTreeItem extends vscode.TreeItem {
   ) {
     super(skill.name, collapsibleState);
 
-    this.tooltip = skill.description || skill.name;
-    this.description = this.buildLocationTags();
+    // Determine installation state
+    const hasProjectInstall = this.skill.installations.some(i => i.scope === 'project');
+    const hasGlobalInstall = this.skill.installations.some(i => i.scope === 'global');
+
+    // Build context value string for unique icon visibility
+    const parts = ['skill'];
+    parts.push(hasProjectInstall ? 'projInstalled' : 'projMissing');
+    parts.push(hasGlobalInstall ? 'globInstalled' : 'globMissing');
+    this.contextValue = parts.join('_');
+
+    // Build tooltip with source info
+    const source = skill.metadata?.source || 'local';
+    const header = `**[${source}] #${skill.name}**`;
+    const mdTooltip = new vscode.MarkdownString(`${header}\n\n${skill.description || ''}`);
+    mdTooltip.isTrusted = true;
+    this.tooltip = mdTooltip;
+
+    // Remove description (hidden tags)
+    this.description = '';
     this.iconPath = new vscode.ThemeIcon('file-code');
-    this.contextValue = 'skill';
 
     // Command to show detail on click
     this.command = {
@@ -24,42 +40,26 @@ export class SkillTreeItem extends vscode.TreeItem {
       arguments: [skill],
     };
   }
-
-  /**
-   * Build location tags like "[Proj·CC,CX][Glob·GM]"
-   */
-  private buildLocationTags(): string {
-    const projReaders: string[] = [];
-    const globReaders: string[] = [];
-
-    for (const install of this.skill.installations) {
-      const reader = getReaderById(install.readerId);
-      const shortName = reader?.shortName || install.readerId;
-
-      if (install.scope === 'project') {
-        if (!projReaders.includes(shortName)) {
-          projReaders.push(shortName);
-        }
-      } else {
-        if (!globReaders.includes(shortName)) {
-          globReaders.push(shortName);
-        }
-      }
-    }
-
-    const tags: string[] = [];
-    if (projReaders.length > 0) {
-      tags.push(`[Proj·${projReaders.join(',')}]`);
-    }
-    if (globReaders.length > 0) {
-      tags.push(`[Glob·${globReaders.join(',')}]`);
-    }
-
-    return tags.join('');
-  }
 }
 
+/**
+ * TreeDataProvider for the sidebar
+ */
+export type GroupingMode = 'none' | 'scope';
 
+/**
+ * Group item in the tree (Scope or Reader)
+ */
+export class GroupingItem extends vscode.TreeItem {
+  constructor(
+    public readonly label: string,
+    public readonly scope: 'global' | 'project'
+  ) {
+    super(label, vscode.TreeItemCollapsibleState.Collapsed);
+    this.contextValue = 'skillGroup';
+    this.iconPath = new vscode.ThemeIcon(scope === 'global' ? 'globe' : 'project');
+  }
+}
 
 /**
  * TreeDataProvider for the sidebar
@@ -71,6 +71,7 @@ export class SkillManagerTreeDataProvider
 
   private skills: Skill[] = [];
   private filterText: string = '';
+  private groupingMode: GroupingMode = 'none';
 
   constructor() {
     this.refresh();
@@ -79,6 +80,15 @@ export class SkillManagerTreeDataProvider
   setFilter(text: string): void {
     this.filterText = text.toLowerCase();
     this._onDidChangeTreeData.fire(undefined);
+  }
+
+  setGrouping(mode: GroupingMode): void {
+    this.groupingMode = mode;
+    this.refresh();
+  }
+
+  getGroupingMode(): GroupingMode {
+    return this.groupingMode;
   }
 
   refresh(): void {
@@ -91,15 +101,7 @@ export class SkillManagerTreeDataProvider
   }
 
   getChildren(element?: vscode.TreeItem): vscode.TreeItem[] {
-    if (element) {
-      // No children for individual items
-      return [];
-    }
-
-    // Root level: skills + markets
-    const items: vscode.TreeItem[] = [];
-
-    // Filter skills
+    // 1. Filter skills first
     const filteredSkills = this.filterText
       ? this.skills.filter(
         (s) =>
@@ -108,13 +110,59 @@ export class SkillManagerTreeDataProvider
       )
       : this.skills;
 
-    for (const skill of filteredSkills) {
-      items.push(new SkillTreeItem(skill, vscode.TreeItemCollapsibleState.None));
+    if (!element) {
+      // Root Level
+      if (this.groupingMode === 'none') {
+        return filteredSkills.map(s => new SkillTreeItem(s, vscode.TreeItemCollapsibleState.None));
+      } else {
+        // Return fixed two groups: Project, Global
+        return [
+          new GroupingItem('Project', 'project'),
+          new GroupingItem('Global', 'global')
+        ];
+      }
     }
 
+    if (element instanceof GroupingItem) {
+      // Level 2: Scope -> Skills
+      const scopeSkills = filteredSkills.filter(s =>
+        s.installations.some(i => i.scope === element.scope)
+      );
+      return scopeSkills.map(s => new SkillTreeItem(s, vscode.TreeItemCollapsibleState.None));
+    }
 
+    return [];
+  }
 
-    return items;
+  async deleteGroup(item: GroupingItem): Promise<void> {
+    const confirm = await vscode.window.showWarningMessage(
+      `Delete all skills in ${item.label}? This cannot be undone.`,
+      { modal: true },
+      'Delete All'
+    );
+
+    if (confirm !== 'Delete All') return;
+
+    const freshSkills = scanSkills();
+    let deleteCount = 0;
+
+    for (const skill of freshSkills) {
+      // Find installations matching this group
+      const targetInstalls = skill.installations.filter(i => i.scope === item.scope);
+
+      if (targetInstalls.length > 0) {
+        // Delete these specific installations
+        for (const install of targetInstalls) {
+          // Import deleteSkillInstallation
+          const { deleteSkillInstallation } = require('../services/installService');
+          deleteSkillInstallation(install);
+          deleteCount++;
+        }
+      }
+    }
+
+    vscode.window.showInformationMessage(`Deleted ${deleteCount} skill installations.`);
+    this.refresh();
   }
 
   getSkills(): Skill[] {
