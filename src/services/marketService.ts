@@ -113,7 +113,7 @@ function parseSkillDescription(skillPath: string): string | undefined {
  * Get cache directory for market repos
  */
 export function getCacheDir(): string {
-  return path.join(os.homedir(), '.skill-manager', 'cache');
+  return path.join(os.homedir(), '.skill-knife', 'cache');
 }
 
 /**
