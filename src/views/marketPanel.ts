@@ -313,12 +313,12 @@ export class MarketPanel {
           let buttonHtml: string;
           if (isInstalled) {
             if (hasUpdate) {
-              buttonHtml = `<button class="update-btn" onclick="update('${this._escapeHtml(skill.name)}')">Update</button>`;
+              buttonHtml = `<button class="action-btn update-btn" onclick="update('${this._escapeHtml(skill.name)}')">Update</button>`;
             } else {
-              buttonHtml = '<span class="installed-badge">Installed</span>';
+              buttonHtml = `<button class="action-btn uninstall-btn" onclick="uninstall('${this._escapeHtml(skill.name)}')">Uninstall</button>`;
             }
           } else {
-            buttonHtml = `<button class="install-btn" onclick="install('${this._escapeHtml(skill.name)}')">Install</button>`;
+            buttonHtml = `<button class="action-btn install-btn" onclick="install('${this._escapeHtml(skill.name)}')">Install</button>`;
           }
 
           const searchContent = this._escapeHtml((skill.name + ' ' + (skill.description || '')).toLowerCase());
@@ -408,25 +408,23 @@ export class MarketPanel {
       color: var(--vscode-descriptionForeground);
       font-size: 0.9em;
     }
-    .install-btn {
-      padding: 3px 12px;
-      font-size: 0.85em;
+    .action-btn {
+      padding: 4px 12px;
+      font-size: 12px;
+      line-height: 18px;
+      min-width: 80px;
+      text-align: center;
+      border: 1px solid transparent;
     }
-    .update-btn {
-      padding: 3px 12px;
-      font-size: 0.85em;
+    .install-btn {
+      /* Inherits primary button styles */
+    }
+    .update-btn, .uninstall-btn {
       background: var(--vscode-button-secondaryBackground);
       color: var(--vscode-button-secondaryForeground);
     }
-    .update-btn:hover {
+    .update-btn:hover, .uninstall-btn:hover {
       background: var(--vscode-button-secondaryHoverBackground);
-    }
-    .installed-badge {
-      background: var(--vscode-badge-background);
-      color: var(--vscode-badge-foreground);
-      padding: 3px 8px;
-      border-radius: 3px;
-      font-size: 0.8em;
     }
     .loading, .empty {
       text-align: center;
