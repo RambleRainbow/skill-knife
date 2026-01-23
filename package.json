@@ -227,8 +227,25 @@
         },
         "skillManager.markets": {
           "type": "array",
-          "default": [],
-          "description": "Skill markets (git repositories). If configured, replaces built-in defaults.",
+          "default": [
+            {
+              "name": "Anthropic Official",
+              "git": "anthropics/skills"
+            },
+            {
+              "name": "Superpowers",
+              "git": "obra/superpowers"
+            },
+            {
+              "name": "Vercel Labs",
+              "git": "vercel-labs/agent-browser"
+            },
+            {
+              "name": "ComposioHQ Awesome",
+              "git": "ComposioHQ/awesome-claude-skills"
+            }
+          ],
+          "description": "Skill markets (git repositories).",
           "items": {
             "type": "object",
             "properties": {
