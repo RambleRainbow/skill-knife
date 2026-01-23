@@ -156,9 +156,7 @@ export class MarketPanel {
           progress.report({ message: `Installing ${skill.name} (${++count}/${total})...` });
           try {
             const source = getInstallSource(skill);
-            // 1. Project Install
-            await runOpenSkills(['install', source]);
-            // 2. Universal Install
+            // Universal Install
             await runOpenSkills(['install', source, '--universal']);
           } catch (error) {
             console.error(`Failed to install ${skill.name}:`, error);
@@ -197,14 +195,12 @@ export class MarketPanel {
         },
         async () => {
           const source = getInstallSource(skill);
-          // 1. Project Install
-          await runOpenSkills(['install', source]);
-          // 2. Universal Install
+          // Universal Install
           await runOpenSkills(['install', source, '--universal']);
         }
       );
 
-      vscode.window.showInformationMessage(`Successfully installed ${skill.name} (Project & Universal)`);
+      vscode.window.showInformationMessage(`Successfully installed ${skill.name} (Universal)`);
 
       // Refresh the sidebar
       vscode.commands.executeCommand('skillManager.refresh');
@@ -232,9 +228,7 @@ export class MarketPanel {
         },
         async () => {
           const source = getInstallSource(skill);
-          // 1. Project Install
-          await runOpenSkills(['install', source]);
-          // 2. Universal Install
+          // Universal Install
           await runOpenSkills(['install', source, '--universal']);
         }
       );
