@@ -60,7 +60,8 @@ export class SkillDetailPanel {
     // Build source info
     let sourceHtml = '';
     if (skill.metadata?.repoUrl) {
-      sourceHtml = `<p><strong>Source:</strong> ${this._escapeHtml(skill.metadata.repoUrl)}</p>`;
+      const escapedUrl = this._escapeHtml(skill.metadata.repoUrl);
+      sourceHtml = `<p><strong>Source:</strong> <a href="${escapedUrl}">${escapedUrl}</a></p>`;
     }
 
     return `<!DOCTYPE html>

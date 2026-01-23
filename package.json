@@ -132,11 +132,6 @@
       ],
       "view/item/context": [
         {
-          "command": "skillManager.openRepo",
-          "when": "view == skillManagerView && viewItem =~ /^skill.*/",
-          "group": "inline@0"
-        },
-        {
           "command": "skillManager.uninstallProject",
           "when": "view == skillManagerView && viewItem =~ /.*_projInstalled.*/",
           "group": "inline@1"
