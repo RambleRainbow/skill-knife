@@ -94,9 +94,15 @@ export class MarketPanel {
         }
         break;
 
+      case 'uninstall':
+        if (message.skillName) {
+          await this._showUninstallDialog(message.skillName);
+        }
+        break;
+
       case 'search':
         this._searchText = message.searchText?.toLowerCase() || '';
-        this._updateContent();
+        // No updateContent() to avoid focus loss
         break;
 
       case 'refresh':
@@ -245,6 +251,40 @@ export class MarketPanel {
     }
   }
 
+  private async _showUninstallDialog(skillName: string) {
+    const confirm = await vscode.window.showWarningMessage(
+      `Are you sure you want to uninstall ${skillName}?`,
+      { modal: true },
+      'Uninstall'
+    );
+
+    if (confirm !== 'Uninstall') {
+      return;
+    }
+
+    try {
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Uninstalling ${skillName}...`,
+          cancellable: false,
+        },
+        async () => {
+          // Attempt to remove from Universal (most likely) and Project
+          // We try both commands to ensure cleanup, ignoring errors if one is missing
+          try { await runOpenSkills(['remove', skillName, '--universal']); } catch (e) { }
+          try { await runOpenSkills(['remove', skillName]); } catch (e) { }
+        }
+      );
+
+      vscode.window.showInformationMessage(`Successfully uninstalled ${skillName}`);
+      vscode.commands.executeCommand('skillManager.refresh');
+      this._updateContent();
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to uninstall ${skillName}: ${error}`);
+    }
+  }
+
   private _updateContent() {
     this._panel.webview.html = this._getHtmlContent();
   }
@@ -266,46 +306,36 @@ export class MarketPanel {
     } else if (this._skills.length === 0) {
       skillsHtml = '<div class="empty">No skills found in this market</div>';
     } else {
-      // Filter skills by search text
-      const filteredSkills = this._searchText
-        ? this._skills.filter(
-          (s) =>
-            s.name.toLowerCase().includes(this._searchText) ||
-            (s.description && s.description.toLowerCase().includes(this._searchText))
-        )
-        : this._skills;
+      // Allow client-side filtering: render ALL skills
+      skillsHtml = this._skills
+        .map((skill) => {
+          const isInstalled = installedNames.has(skill.name);
+          const hasUpdate = isInstalled && hasUpdateAvailable(skill.name, installedSkills, this._skills);
 
-      if (filteredSkills.length === 0) {
-        skillsHtml = '<div class="empty">No skills match your search</div>';
-      } else {
-        skillsHtml = filteredSkills
-          .map((skill) => {
-            const isInstalled = installedNames.has(skill.name);
-            const hasUpdate = isInstalled && hasUpdateAvailable(skill.name, installedSkills, this._skills);
-
-            let buttonHtml: string;
-            if (isInstalled) {
-              if (hasUpdate) {
-                buttonHtml = `<button class="update-btn" onclick="update('${this._escapeHtml(skill.name)}')">Update</button>`;
-              } else {
-                buttonHtml = '<span class="installed-badge">Installed</span>';
-              }
+          let buttonHtml: string;
+          if (isInstalled) {
+            if (hasUpdate) {
+              buttonHtml = `<button class="update-btn" onclick="update('${this._escapeHtml(skill.name)}')">Update</button>`;
             } else {
-              buttonHtml = `<button class="install-btn" onclick="install('${this._escapeHtml(skill.name)}')">Install</button>`;
+              buttonHtml = '<span class="installed-badge">Installed</span>';
             }
+          } else {
+            buttonHtml = `<button class="install-btn" onclick="install('${this._escapeHtml(skill.name)}')">Install</button>`;
+          }
 
-            return `
-            <div class="skill-card">
-              <div class="skill-header">
-                <span class="skill-name">${this._escapeHtml(skill.name)}</span>
-                ${buttonHtml}
-              </div>
-              <div class="skill-description">${this._escapeHtml(skill.description || 'No description')}</div>
+          const searchContent = this._escapeHtml((skill.name + ' ' + (skill.description || '')).toLowerCase());
+
+          return `
+          <div class="skill-card" data-search-content="${searchContent}">
+            <div class="skill-header">
+              <span class="skill-name">${this._escapeHtml(skill.name)}</span>
+              ${buttonHtml}
             </div>
-          `;
-          })
-          .join('');
-      }
+            <div class="skill-description">${this._escapeHtml(skill.description || 'No description')}</div>
+          </div>
+        `;
+        })
+        .join('');
     }
 
     return `<!DOCTYPE html>
@@ -363,6 +393,9 @@ export class MarketPanel {
       padding: 15px;
       margin-bottom: 10px;
     }
+    .skill-card.hidden {
+      display: none;
+    }
     .skill-header {
       display: flex;
       justify-content: space-between;
@@ -416,7 +449,7 @@ export class MarketPanel {
   <div class="header">
     <h1>Skill Markets</h1>
     <div class="controls">
-      <input type="text" class="search-box" placeholder="Search skills..." oninput="search(this.value)">
+      <input type="text" class="search-box" placeholder="Search skills..." value="${this._escapeHtml(this._searchText)}" oninput="search(this.value)">
       <select id="marketSelect" onchange="selectMarket(this.value)">
         ${marketOptions}
       </select>
@@ -444,7 +477,25 @@ export class MarketPanel {
       vscode.postMessage({ command: 'update', skillName: skillName });
     }
 
+    function uninstall(skillName) {
+      vscode.postMessage({ command: 'uninstall', skillName: skillName });
+    }
+
     function search(text) {
+      const lowerText = text.toLowerCase();
+      const cards = document.querySelectorAll('.skill-card');
+      let visibleCount = 0;
+
+      cards.forEach(card => {
+        const content = card.getAttribute('data-search-content') || '';
+        if (content.includes(lowerText)) {
+          card.classList.remove('hidden');
+          visibleCount++;
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+
       vscode.postMessage({ command: 'search', searchText: text });
     }
 
@@ -455,6 +506,14 @@ export class MarketPanel {
     function installAll() {
       vscode.postMessage({ command: 'installAll' });
     }
+    
+    // Initialize search state
+    // document.addEventListener('DOMContentLoaded', () => {
+    //   const input = document.querySelector('.search-box');
+    //   if (input && input.value) {
+    //     search(input.value);
+    //   }
+    // });
   </script>
 </body>
 </html>`;
