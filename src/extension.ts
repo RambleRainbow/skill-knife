@@ -236,42 +236,75 @@ export function activate(context: vscode.ExtensionContext) {
       }
 
       const selected = await vscode.window.showQuickPick(items, {
-        title: 'Load Profile (Merge)',
-        placeHolder: 'Select a profile to merge into current project'
+        title: 'Load Profile (Sync)',
+        placeHolder: 'Select a profile to sync (this will remove extra skills)'
       });
 
       if (!selected) return;
 
-      const currentSkills = new Set(scanSkills().map(s => s.name));
-      const missing = selected.profile.skills.filter(s => !currentSkills.has(s.name));
+      const currentSkills = scanSkills();
+      const currentNames = new Set(currentSkills.map(s => s.name));
+      const profileSkillNames = new Set(selected.profile.skills.map(s => s.name));
 
-      if (missing.length === 0) {
-        vscode.window.showInformationMessage('All skills in profile are already installed.');
+      const toInstall = selected.profile.skills.filter(s => !currentNames.has(s.name));
+
+      // Calculate removals (Sync logic enabled by default)
+      const toRemove = currentSkills
+        .filter(s => !profileSkillNames.has(s.name) && s.installations.some(i => i.scope === 'project'))
+        .map(s => s.name);
+
+      if (toInstall.length === 0 && toRemove.length === 0) {
+        vscode.window.showInformationMessage('Project is already in sync with profile.');
         return;
+      }
+
+      // Confirmation for destructive Sync
+      if (toRemove.length > 0) {
+        const confirm = await vscode.window.showWarningMessage(
+          `Syncing will remove ${toRemove.length} extra skills: ${toRemove.join(', ')}. Continue?`,
+          { modal: true },
+          'Yes, Sync'
+        );
+        if (confirm !== 'Yes, Sync') return;
       }
 
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: `Installing ${missing.length} skills from "${selected.label}"...`,
+          title: `Syncing profile "${selected.label}"...`,
           cancellable: false
         },
         async (progress) => {
-          let count = 0;
-          for (const skill of missing) {
-            progress.report({ message: `Installing ${skill.name} (${++count}/${missing.length})...` });
-            try {
-              // Universal Install
-              await runOpenSkills(['install', skill.source, '--universal']);
-            } catch (e) {
-              console.error(`Failed to install ${skill.name}:`, e);
-              vscode.window.showErrorMessage(`Failed to install ${skill.name}: ${e}`);
+          // 1. Remove extras
+          if (toRemove.length > 0) {
+            let rmCount = 0;
+            for (const name of toRemove) {
+              progress.report({ message: `Removing ${name} (${++rmCount}/${toRemove.length})...` });
+              try {
+                await runOpenSkills(['remove', name]);
+              } catch (e) {
+                console.error(`Failed to remove ${name}:`, e);
+              }
+            }
+          }
+
+          // 2. Install missing
+          if (toInstall.length > 0) {
+            let instCount = 0;
+            for (const skill of toInstall) {
+              progress.report({ message: `Installing ${skill.name} (${++instCount}/${toInstall.length})...` });
+              try {
+                await runOpenSkills(['install', skill.source, '--universal']);
+              } catch (e) {
+                console.error(`Failed to install ${skill.name}:`, e);
+                vscode.window.showErrorMessage(`Failed to install ${skill.name}: ${e}`);
+              }
             }
           }
         }
       );
 
-      vscode.window.showInformationMessage(`Finished loading profile.`);
+      vscode.window.showInformationMessage(`Profile synced successfully.`);
       treeDataProvider.refresh();
     })
   );
