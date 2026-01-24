@@ -500,21 +500,31 @@ export class MarketPanel {
       background-color: var(--vscode-editor-background);
     }
     .header {
+      /* Removed old flex styles */
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--vscode-panel-border);
+      padding-bottom: 15px;
+    }
+    .market-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
-      border-bottom: 1px solid var(--vscode-panel-border);
-      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+    .action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .market-controls {
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
     h1 {
       margin: 0;
       font-size: 1.5em;
-    }
-    .controls {
-      display: flex;
-      gap: 10px;
-      align-items: center;
     }
     select {
       padding: 5px 10px;
@@ -522,6 +532,7 @@ export class MarketPanel {
       color: var(--vscode-dropdown-foreground);
       border: 1px solid var(--vscode-dropdown-border);
       border-radius: 3px;
+      min-width: 200px;
     }
     button {
       padding: 5px 10px;
@@ -534,6 +545,31 @@ export class MarketPanel {
     button:hover {
       background: var(--vscode-button-hoverBackground);
     }
+    .icon-btn {
+      padding: 5px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .icon-btn.delete-btn {
+      background: var(--vscode-button-secondaryBackground);
+    }
+    .icon-btn.delete-btn:hover {
+      background: var(--vscode-errorForeground);
+      color: white;
+    }
+    
+    .search-box {
+      flex-grow: 1;
+      padding: 6px 10px;
+      background: var(--vscode-input-background);
+      color: var(--vscode-input-foreground);
+      border: 1px solid var(--vscode-input-border);
+      border-radius: 3px;
+    }
+
     .skill-card {
       background: var(--vscode-editor-inactiveSelectionBackground);
       border: 1px solid var(--vscode-panel-border);
@@ -581,51 +617,42 @@ export class MarketPanel {
       padding: 40px;
       color: var(--vscode-descriptionForeground);
     }
-    .search-box {
-      padding: 5px 10px;
-      background: var(--vscode-input-background);
-      color: var(--vscode-input-foreground);
-      border: 1px solid var(--vscode-input-border);
-      border-radius: 3px;
-      width: 200px;
-    }
-    .market-controls {
+
+    .tools-group {
       display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .icon-btn {
-      padding: 5px;
-      min-width: 30px;
-    }
-    .icon-btn.delete-btn {
-      background: var(--vscode-button-secondaryBackground);
-    }
-    .icon-btn.delete-btn:hover {
-      background: var(--vscode-errorForeground);
-      color: white;
+      gap: 8px;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>Skill Markets</h1>
-    <div class="controls">
-      <input type="text" class="search-box" placeholder="Search skills..." value="${this._escapeHtml(this._searchText)}" oninput="search(this.value)">
+    <!-- Row 1: Title and Market Selection -->
+    <div class="market-bar">
+      <h1>Skill Markets</h1>
       <div class="market-controls">
         <select id="marketSelect" onchange="selectMarket(this.value)">
           ${marketOptions}
         </select>
-        <button class="icon-btn" title="Add Market" onclick="addMarket()">
+        <button class="icon-btn" title="Add Custom Market" onclick="addMarket()">
           <span class="codicon codicon-add">+</span>
         </button>
         <button class="icon-btn delete-btn" title="Delete Market" style="${deleteBtnStyle}" onclick="deleteMarket()">
           <span class="codicon codicon-trash">🗑️</span>
         </button>
       </div>
-      <button onclick="installAll()">Install All</button>
-      <button onclick="uninstallAll()">Uninstall All</button>
-      <button onclick="refresh()">Refresh</button>
+    </div>
+
+    <!-- Row 2: Search and Actions -->
+    <div class="action-bar">
+      <input type="text" class="search-box" placeholder="Search skills..." value="${this._escapeHtml(this._searchText)}" oninput="search(this.value)">
+      
+      <div class="tools-group">
+        <button onclick="installAll()" title="Install all visible skills">Install All</button>
+        <button onclick="uninstallAll()" title="Uninstall all visible skills">Uninstall All</button>
+        <button class="icon-btn" onclick="refresh()" title="Refresh Market">
+          <span class="codicon codicon-refresh">↻</span>
+        </button>
+      </div>
     </div>
   </div>
 
