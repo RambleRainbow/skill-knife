@@ -4,6 +4,8 @@ import { MarketSkill, fetchMarketSkills, getAllMarkets } from '../services/marke
 import { scanSkills } from '../services/skillScanner';
 import { hasUpdateAvailable } from '../services/updateService';
 import { runOpenSkills, getInstallSource } from '../services/cliService';
+import { PersistenceService } from '../services/persistenceService';
+import { DEFAULT_MARKETS } from '../config/defaults';
 
 export class MarketPanel {
   public static currentPanel: MarketPanel | undefined;
@@ -111,6 +113,16 @@ export class MarketPanel {
 
       case 'installAll':
         await this._installAllVisible();
+        break;
+
+      case 'addMarket':
+        await this._handleAddMarket();
+        break;
+
+      case 'deleteMarket':
+        if (message.marketName) {
+          await this._handleDeleteMarket(message.marketName);
+        }
         break;
     }
   }
@@ -273,6 +285,77 @@ export class MarketPanel {
     }
   }
 
+  private async _handleAddMarket() {
+    const name = await vscode.window.showInputBox({
+      title: 'Add Custom Market',
+      placeHolder: 'Enter market name',
+      validateInput: (value) => {
+        if (!value) return 'Name is required';
+        if (this._markets.some(m => m.name === value)) return 'Market with this name already exists';
+        return null;
+      }
+    });
+
+    if (!name) return;
+
+    const git = await vscode.window.showInputBox({
+      title: 'Add Custom Market',
+      placeHolder: 'Enter git repository URL or "owner/repo"',
+      validateInput: (value) => value ? null : 'Repository is required'
+    });
+
+    if (!git) return;
+
+    // Add to persistence
+    const currentCustom = PersistenceService.getUserMarkets();
+    const newMarket = { name, git };
+    PersistenceService.saveUserMarkets([...currentCustom, newMarket]);
+
+    vscode.window.showInformationMessage(`Added market "${name}"`);
+
+    // Refresh markets list and UI
+    this._markets = getAllMarkets(); // Reload from source
+
+    // Select the new market
+    this._currentMarket = this._markets.find(m => m.name === name);
+    this._updateContent();
+    this._loadSkills();
+  }
+
+  private async _handleDeleteMarket(name: string) {
+    const isDefault = DEFAULT_MARKETS.some(m => m.name === name);
+    if (isDefault) {
+      vscode.window.showErrorMessage('Cannot delete built-in markets.');
+      return;
+    }
+
+    const confirm = await vscode.window.showWarningMessage(
+      `Delete market "${name}"?`,
+      { modal: true },
+      'Delete'
+    );
+
+    if (confirm !== 'Delete') return;
+
+    // Remove from persistence
+    const currentCustom = PersistenceService.getUserMarkets();
+    const filtered = currentCustom.filter(m => m.name !== name);
+    PersistenceService.saveUserMarkets(filtered);
+
+    vscode.window.showInformationMessage(`Deleted market "${name}"`);
+
+    // Reload
+    this._markets = getAllMarkets();
+
+    // Fallback to first market if current was deleted
+    if (this._currentMarket?.name === name) {
+      this._currentMarket = this._markets[0];
+    }
+
+    this._updateContent();
+    this._loadSkills();
+  }
+
   private _updateContent() {
     this._panel.webview.html = this._getHtmlContent();
   }
@@ -283,10 +366,15 @@ export class MarketPanel {
 
     const marketOptions = this._markets
       .map((m) => {
+        const isCustom = !DEFAULT_MARKETS.some(dm => dm.name === m.name);
+        const displayName = isCustom ? `${m.name} *` : m.name;
         const selected = m.name === this._currentMarket?.name ? 'selected' : '';
-        return `<option value="${this._escapeHtml(m.name)}" ${selected}>${this._escapeHtml(m.name)}</option>`;
+        return `<option value="${this._escapeHtml(m.name)}" ${selected}>${this._escapeHtml(displayName)}</option>`;
       })
       .join('');
+
+    const isCustomMarket = !DEFAULT_MARKETS.some(m => m.name === this._currentMarket?.name);
+    const deleteBtnStyle = isCustomMarket ? '' : 'display:none;';
 
     let skillsHtml: string;
     if (this._loading) {
@@ -429,6 +517,22 @@ export class MarketPanel {
       border-radius: 3px;
       width: 200px;
     }
+    .market-controls {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .icon-btn {
+      padding: 5px;
+      min-width: 30px;
+    }
+    .icon-btn.delete-btn {
+      background: var(--vscode-button-secondaryBackground);
+    }
+    .icon-btn.delete-btn:hover {
+      background: var(--vscode-errorForeground);
+      color: white;
+    }
   </style>
 </head>
 <body>
@@ -436,9 +540,17 @@ export class MarketPanel {
     <h1>Skill Markets</h1>
     <div class="controls">
       <input type="text" class="search-box" placeholder="Search skills..." value="${this._escapeHtml(this._searchText)}" oninput="search(this.value)">
-      <select id="marketSelect" onchange="selectMarket(this.value)">
-        ${marketOptions}
-      </select>
+      <div class="market-controls">
+        <select id="marketSelect" onchange="selectMarket(this.value)">
+          ${marketOptions}
+        </select>
+        <button class="icon-btn" title="Add Market" onclick="addMarket()">
+          <span class="codicon codicon-add">+</span>
+        </button>
+        <button class="icon-btn delete-btn" title="Delete Market" style="${deleteBtnStyle}" onclick="deleteMarket()">
+          <span class="codicon codicon-trash">🗑️</span>
+        </button>
+      </div>
       <button onclick="installAll()">Install All</button>
       <button onclick="refresh()">Refresh</button>
     </div>
@@ -500,6 +612,14 @@ export class MarketPanel {
     //     search(input.value);
     //   }
     // });
+    function addMarket() {
+      vscode.postMessage({ command: 'addMarket' });
+    }
+
+    function deleteMarket() {
+      const select = document.getElementById('marketSelect');
+      vscode.postMessage({ command: 'deleteMarket', marketName: select.value });
+    }
   </script>
 </body>
 </html>`;

@@ -67,3 +67,20 @@ export interface Market {
   /** Git repository URL */
   git: string;
 }
+
+/**
+ * Reference to a skill in a profile
+ */
+export interface InstalledSkillRef {
+  name: string;
+  source: string; // The "install source" needed for openskills install
+}
+
+/**
+ * Saved skill profile
+ */
+export interface SkillProfile {
+  name: string;
+  created: number;
+  skills: InstalledSkillRef[];
+}

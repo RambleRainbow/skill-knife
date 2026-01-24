@@ -14,9 +14,6 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [
-    "onView:skillKnifeView"
-  ],
   "main": "./out/extension.js",
   "contributes": {
     "views": {
@@ -109,24 +106,39 @@
         "command": "skillKnife.deleteGroup",
         "title": "Delete Group",
         "icon": "$(trash)"
+      },
+      {
+        "command": "skillKnife.saveProfile",
+        "title": "Save Profile",
+        "icon": "$(save)"
+      },
+      {
+        "command": "skillKnife.loadProfile",
+        "title": "Load Profile",
+        "icon": "$(folder-opened)"
       }
     ],
     "menus": {
       "view/title": [
         {
           "command": "skillKnife.refresh",
-          "when": "view == skillKnife.sidebarView || view == skillKnife.explorerView",
-          "group": "navigation@1"
-        },
-        {
-          "command": "skillKnife.filter",
           "when": "view == skillKnifeView",
-          "group": "navigation@4"
+          "group": "navigation@1"
         },
         {
           "command": "skillKnife.showMarkets",
           "when": "view == skillKnifeView",
           "group": "navigation@5"
+        },
+        {
+          "command": "skillKnife.loadProfile",
+          "when": "view == skillKnifeView",
+          "group": "navigation@3"
+        },
+        {
+          "command": "skillKnife.saveProfile",
+          "when": "view == skillKnifeView",
+          "group": "navigation@3"
         },
         {
           "command": "skillKnife.updateAll",

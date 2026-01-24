@@ -6,6 +6,8 @@ import { Skill } from './types';
 import { deleteSkill } from './services/installService';
 import { updateAllSkills } from './services/updateService';
 import { initCliService, runOpenSkills, getInstallSource } from './services/cliService';
+import { PersistenceService } from './services/persistenceService';
+import { scanSkills } from './services/skillScanner';
 
 let treeDataProvider: SkillKnifeTreeDataProvider;
 
@@ -15,6 +17,8 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Create and register tree data provider
   treeDataProvider = new SkillKnifeTreeDataProvider();
+
+  // Register single view (Explorer)
   const treeView = vscode.window.registerTreeDataProvider('skillKnifeView', treeDataProvider);
   context.subscriptions.push(treeView);
 
@@ -186,7 +190,90 @@ export function activate(context: vscode.ExtensionContext) {
     installProjectCmd,
     uninstallProjectCmd,
     installGlobalCmd,
-    uninstallGlobalCmd
+    uninstallGlobalCmd,
+    // Profile Commands
+    vscode.commands.registerCommand('skillKnife.saveProfile', async () => {
+      const skills = scanSkills().filter(s => s.installations.some(i => i.scope === 'project'));
+      if (skills.length === 0) {
+        vscode.window.showInformationMessage('No project skills to save.');
+        return;
+      }
+
+      const name = await vscode.window.showInputBox({
+        title: 'Save Profile',
+        placeHolder: 'Enter profile name',
+        validateInput: (value) => value ? null : 'Name is required'
+      });
+
+      if (!name) return;
+
+      const profileSkills = skills.map(s => ({
+        name: s.name,
+        source: getInstallSource(s)
+      }));
+
+      PersistenceService.saveProfile({
+        name,
+        created: Date.now(),
+        skills: profileSkills
+      });
+
+      vscode.window.showInformationMessage(`Saved profile "${name}" with ${profileSkills.length} skills.`);
+    }),
+
+    vscode.commands.registerCommand('skillKnife.loadProfile', async () => {
+      const profiles = PersistenceService.getProfiles();
+      const items = Object.values(profiles).map(p => ({
+        label: p.name,
+        description: `${p.skills.length} skills`,
+        detail: new Date(p.created).toLocaleString(),
+        profile: p
+      }));
+
+      if (items.length === 0) {
+        vscode.window.showInformationMessage('No saved profiles found.');
+        return;
+      }
+
+      const selected = await vscode.window.showQuickPick(items, {
+        title: 'Load Profile (Merge)',
+        placeHolder: 'Select a profile to merge into current project'
+      });
+
+      if (!selected) return;
+
+      const currentSkills = new Set(scanSkills().map(s => s.name));
+      const missing = selected.profile.skills.filter(s => !currentSkills.has(s.name));
+
+      if (missing.length === 0) {
+        vscode.window.showInformationMessage('All skills in profile are already installed.');
+        return;
+      }
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Installing ${missing.length} skills from "${selected.label}"...`,
+          cancellable: false
+        },
+        async (progress) => {
+          let count = 0;
+          for (const skill of missing) {
+            progress.report({ message: `Installing ${skill.name} (${++count}/${missing.length})...` });
+            try {
+              // Universal Install
+              await runOpenSkills(['install', skill.source, '--universal']);
+            } catch (e) {
+              console.error(`Failed to install ${skill.name}:`, e);
+              vscode.window.showErrorMessage(`Failed to install ${skill.name}: ${e}`);
+            }
+          }
+        }
+      );
+
+      vscode.window.showInformationMessage(`Finished loading profile.`);
+      treeDataProvider.refresh();
+    })
   );
 }
 
