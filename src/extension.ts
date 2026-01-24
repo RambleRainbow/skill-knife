@@ -18,9 +18,10 @@ export function activate(context: vscode.ExtensionContext) {
   // Create and register tree data provider
   treeDataProvider = new SkillKnifeTreeDataProvider();
 
-  // Register single view (Explorer)
-  const treeView = vscode.window.registerTreeDataProvider('skillKnifeView', treeDataProvider);
-  context.subscriptions.push(treeView);
+  // Register Views (Primary Sidebar)
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider('skillKnifeView-sidebar', treeDataProvider)
+  );
 
   // Register refresh command
   const refreshCmd = vscode.commands.registerCommand('skillKnife.refresh', () => {
@@ -101,7 +102,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
   });
 
-  // Handle configuration changes
+  // Handle configuration changes (only grouping)
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration('skillKnife.defaultGrouping')) {

@@ -11,6 +11,9 @@
   "engines": {
     "vscode": "^1.85.0"
   },
+  "activationEvents": [
+    "onView:skillKnifeView-sidebar"
+  ],
   "license": "MIT",
   "keywords": [
     "ai",
@@ -30,12 +33,20 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "views": {
-      "explorer": [
+    "viewsContainers": {
+      "activitybar": [
         {
-          "id": "skillKnifeView",
-          "name": "Skills",
+          "id": "skill-knife-sidebar",
+          "title": "Skill Knife",
           "icon": "media/skill-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "skill-knife-sidebar": [
+        {
+          "id": "skillKnifeView-sidebar",
+          "name": "Skill Knife"
         }
       ]
     },
@@ -136,54 +147,54 @@
       "view/title": [
         {
           "command": "skillKnife.refresh",
-          "when": "view == skillKnifeView",
+          "when": "view =~ /skillKnifeView.*/",
           "group": "navigation@1"
         },
         {
           "command": "skillKnife.showMarkets",
-          "when": "view == skillKnifeView",
+          "when": "view =~ /skillKnifeView.*/",
           "group": "navigation@5"
         },
         {
           "command": "skillKnife.loadProfile",
-          "when": "view == skillKnifeView",
+          "when": "view =~ /skillKnifeView.*/",
           "group": "navigation@3"
         },
         {
           "command": "skillKnife.saveProfile",
-          "when": "view == skillKnifeView",
+          "when": "view =~ /skillKnifeView.*/",
           "group": "navigation@3"
         },
         {
           "command": "skillKnife.updateAll",
-          "when": "view == skillKnifeView",
+          "when": "view =~ /skillKnifeView.*/",
           "group": "navigation@6"
         }
       ],
       "view/item/context": [
         {
           "command": "skillKnife.uninstallProject",
-          "when": "view == skillKnifeView && viewItem =~ /.*_projInstalled.*/",
+          "when": "view =~ /skillKnifeView.*/ && viewItem =~ /.*_projInstalled.*/",
           "group": "inline@1"
         },
         {
           "command": "skillKnife.installProject",
-          "when": "view == skillKnifeView && viewItem =~ /.*_projMissing.*/",
+          "when": "view =~ /skillKnifeView.*/ && viewItem =~ /.*_projMissing.*/",
           "group": "inline@1"
         },
         {
           "command": "skillKnife.uninstallGlobal",
-          "when": "view == skillKnifeView && viewItem =~ /.*_globInstalled.*/",
+          "when": "view =~ /skillKnifeView.*/ && viewItem =~ /.*_globInstalled.*/",
           "group": "inline@2"
         },
         {
           "command": "skillKnife.installGlobal",
-          "when": "view == skillKnifeView && viewItem =~ /.*_globMissing.*/",
+          "when": "view =~ /skillKnifeView.*/ && viewItem =~ /.*_globMissing.*/",
           "group": "inline@2"
         },
         {
           "command": "skillKnife.deleteGroup",
-          "when": "view == skillKnifeView && viewItem == skillGroup",
+          "when": "view =~ /skillKnifeView.*/ && viewItem == skillGroup",
           "group": "inline@3"
         }
       ]
@@ -191,16 +202,6 @@
     "configuration": {
       "title": "SkillKnife",
       "properties": {
-        "skillKnife.location": {
-          "type": "string",
-          "enum": [
-            "auto",
-            "sidebar",
-            "explorer"
-          ],
-          "default": "auto",
-          "description": "Where to show the Skill Knife view. 'auto' attempts to detect the environment."
-        },
         "skillKnife.defaultGrouping": {
           "type": "string",
           "enum": [
