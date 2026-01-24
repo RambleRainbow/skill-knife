@@ -11,7 +11,21 @@
   "engines": {
     "vscode": "^1.85.0"
   },
+  "license": "MIT",
+  "keywords": [
+    "ai",
+    "agent",
+    "skills",
+    "mcp",
+    "claude",
+    "management"
+  ],
+  "homepage": "https://github.com/RambleRainbow/skill-knife/blob/main/README.md",
+  "bugs": {
+    "url": "https://github.com/RambleRainbow/skill-knife/issues"
+  },
   "categories": [
+    "AI",
     "Other"
   ],
   "main": "./out/extension.js",
