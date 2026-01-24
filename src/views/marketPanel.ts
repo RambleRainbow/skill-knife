@@ -115,6 +115,10 @@ export class MarketPanel {
         await this._installAllVisible();
         break;
 
+      case 'uninstallAll':
+        await this._uninstallAllVisible();
+        break;
+
       case 'addMarket':
         await this._handleAddMarket();
         break;
@@ -188,6 +192,74 @@ export class MarketPanel {
           );
         } else {
           vscode.window.showInformationMessage(`Successfully installed ${total} skills.`);
+        }
+      }
+    );
+
+    // Refresh UI
+    vscode.commands.executeCommand('skillKnife.refresh');
+    this._updateContent();
+  }
+
+  private async _uninstallAllVisible() {
+    // 1. Identify skills to uninstall (visible & installed)
+    const installedSkills = scanSkills();
+    const installedNames = new Set(installedSkills.map((s) => s.name));
+
+    let visibleSkills = this._skills;
+    if (this._searchText) {
+      visibleSkills = this._skills.filter(
+        (s) =>
+          s.name.toLowerCase().includes(this._searchText) ||
+          (s.description && s.description.toLowerCase().includes(this._searchText))
+      );
+    }
+
+    const skillsToUninstall = visibleSkills.filter((s) => installedNames.has(s.name));
+
+    if (skillsToUninstall.length === 0) {
+      vscode.window.showInformationMessage('No installed skills found in current view.');
+      return;
+    }
+
+    const confirm = await vscode.window.showWarningMessage(
+      `Uninstall ${skillsToUninstall.length} skills from this market?`,
+      { modal: true },
+      'Yes, Uninstall All'
+    );
+
+    if (confirm !== 'Yes, Uninstall All') {
+      return;
+    }
+
+    // 2. Batched Uninstallation
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'Batch Uninstalling Skills...',
+        cancellable: false,
+      },
+      async (progress) => {
+        let count = 0;
+        const total = skillsToUninstall.length;
+        const errors: string[] = [];
+
+        for (const skill of skillsToUninstall) {
+          progress.report({ message: `Uninstalling ${skill.name} (${++count}/${total})...` });
+          try {
+            await runOpenSkills(['remove', skill.name]);
+          } catch (error) {
+            console.error(`Failed to uninstall ${skill.name}:`, error);
+            errors.push(`${skill.name}: ${error}`);
+          }
+        }
+
+        if (errors.length > 0) {
+          vscode.window.showErrorMessage(
+            `Uninstalled ${total - errors.length}/${total} skills. Failures: ${errors.join(', ')}`
+          );
+        } else {
+          vscode.window.showInformationMessage(`Successfully uninstalled ${total} skills.`);
         }
       }
     );
@@ -552,6 +624,7 @@ export class MarketPanel {
         </button>
       </div>
       <button onclick="installAll()">Install All</button>
+      <button onclick="uninstallAll()">Uninstall All</button>
       <button onclick="refresh()">Refresh</button>
     </div>
   </div>
@@ -603,6 +676,10 @@ export class MarketPanel {
 
     function installAll() {
       vscode.postMessage({ command: 'installAll' });
+    }
+
+    function uninstallAll() {
+      vscode.postMessage({ command: 'uninstallAll' });
     }
     
     // Initialize search state
