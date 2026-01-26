@@ -142,7 +142,17 @@ export async function fetchMarketSkills(market: Market): Promise<MarketSkill[]> 
       const gitUrl = market.git.includes('://')
         ? market.git
         : `https://github.com/${market.git}.git`;
-      await execGit(['clone', '--depth', '1', gitUrl, repoDir], cacheDir);
+      try {
+        await execGit(['clone', '--depth', '1', gitUrl, repoDir], cacheDir);
+      } catch (error) {
+        console.warn(`Shallow clone failed for ${market.name}, trying full clone. Error: ${error}`);
+        // Clean up partial directory if exists
+        if (fs.existsSync(repoDir)) {
+          fs.rmSync(repoDir, { recursive: true, force: true });
+        }
+        // Fallback to full clone
+        await execGit(['clone', gitUrl, repoDir], cacheDir);
+      }
     }
 
     // Get the current commit hash
