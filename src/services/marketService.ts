@@ -66,6 +66,7 @@ function findSkillDirectories(repoDir: string): string[] {
   // Look for common skill directory patterns
   const searchDirs = [
     path.join(repoDir, 'skills'),
+    path.join(repoDir, '.gemini/skills'),
     repoDir,
   ];
 
