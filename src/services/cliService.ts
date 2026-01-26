@@ -14,6 +14,15 @@ export function initCliService(context: vscode.ExtensionContext) {
 }
 
 /**
+ * Log message to output channel
+ */
+export function log(message: string) {
+    if (outputChannel) {
+        outputChannel.appendLine(message);
+    }
+}
+
+/**
  * Run openskills CLI command
  */
 export function runOpenSkills(args: string[]): Promise<void> {

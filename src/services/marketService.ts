@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { Market } from '../types';
 import { getMarkets } from '../config/markets';
+import { log } from './cliService';
 
 /**
  * Represents a skill available in a market
@@ -21,6 +22,9 @@ export interface MarketSkill {
  * Execute git command
  */
 async function execGit(args: string[], cwd: string): Promise<string> {
+  const cmdStr = `git ${args.join(' ')}`;
+  log(`[Git] Executing in ${cwd}: ${cmdStr}`);
+
   return new Promise((resolve, reject) => {
     const child = cp.spawn('git', args, { cwd, shell: true });
 
@@ -37,13 +41,17 @@ async function execGit(args: string[], cwd: string): Promise<string> {
 
     child.on('close', (code) => {
       if (code === 0) {
+        log(`[Git] Success: ${cmdStr}`);
         resolve(stdout);
       } else {
-        reject(new Error(stderr || `git exited with code ${code}`));
+        const errorMsg = stderr || `git exited with code ${code}`;
+        log(`[Git] Failed: ${cmdStr}\nError: ${errorMsg}`);
+        reject(new Error(errorMsg));
       }
     });
 
     child.on('error', (err) => {
+      log(`[Git] Error spawning process: ${err.message}`);
       reject(err);
     });
   });
