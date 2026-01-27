@@ -76,3 +76,4 @@ out/
 *.vsix
 
 docs/ref
+temp_data

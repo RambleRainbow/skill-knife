@@ -39,4 +39,39 @@ export class SkillShService {
             return [];
         }
     }
+
+    /**
+     * Scrape skill details from the website
+     */
+    public static async getSkillDetails(skill: SkillShResult): Promise<{ description?: string; installCmd?: string }> {
+        try {
+            const url = `https://skills.sh/${skill.topSource}/${skill.id}`;
+            const response = await axios.get(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
+            });
+            const html = response.data as string;
+
+            // Scrape Install Command
+            const cmdMatch = html.match(/npx skills add\s+([^<]+)/);
+            const installCmd = cmdMatch ? `npx skills add ${cmdMatch[1]}` : undefined;
+
+            // Scrape Description
+            let description = undefined;
+            const proseMatch = html.match(/class="prose[^"]*">([\s\S]*?)<\/div>/);
+            if (proseMatch) {
+                const rawHtml = proseMatch[1];
+                description = rawHtml.replace(/<[^>]*>/g, '').trim();
+                if (description.length > 500) {
+                    description = description.substring(0, 500) + '...';
+                }
+            }
+
+            return { description, installCmd };
+        } catch (error) {
+            console.warn(`Failed to fetch details for ${skill.name}:`, error);
+            return {};
+        }
+    }
 }

@@ -161,8 +161,10 @@ export class MarketPanel {
     this._loading = true;
     this._updateContent();
 
+    let results: any[] = [];
+
     try {
-      const results = await SkillShService.search(query);
+      results = await SkillShService.search(query);
 
       // Map to MarketSkill
       this._skills = results.map(r => ({
@@ -181,6 +183,33 @@ export class MarketPanel {
 
     this._loading = false;
     this._updateContent();
+
+    // Trigger background fetch for details
+    if (results.length > 0) {
+      this._fetchDetailsInBackground(results);
+    }
+  }
+
+  private async _fetchDetailsInBackground(results: any[]) {
+    // Limit concurrency via simple loop or P-Limit (using sequential for kindness)
+    for (const result of results) {
+      if (this._currentMarket?.name !== SKILL_SH_MARKET.name) break; // Stop if user switched markets
+
+      try {
+        const details = await SkillShService.getSkillDetails(result);
+        if (details.description || details.installCmd) {
+          // Send update to webview
+          this._panel.webview.postMessage({
+            command: 'updateSkill',
+            skillName: result.name,
+            description: details.description,
+            installCmd: details.installCmd
+          });
+        }
+      } catch (e) {
+        console.error(`Bg fetch failed for ${result.name}`, e);
+      }
+    }
   }
 
   private async _installAllVisible() {
@@ -531,13 +560,41 @@ export class MarketPanel {
 
           const searchContent = this._escapeHtml((skill.name + ' ' + (skill.description || '')).toLowerCase());
 
+          // Enhanced Card Design with Details Section
+          const repoUrl = skill.repoPath.startsWith('http') ? skill.repoPath : `https://github.com/${skill.repoPath}`;
+
           return `
-          <div class="skill-card" data-search-content="${searchContent}">
+          <div class="skill-card" id="card-${this._escapeHtml(skill.name)}" data-search-content="${searchContent}">
             <div class="skill-header">
-              <span class="skill-name">${this._escapeHtml(skill.name)}</span>
-              ${buttonHtml}
+              <div class="header-left">
+                 <button class="expand-btn" onclick="toggleDetails('${this._escapeHtml(skill.name)}')">▶</button>
+                 <span class="skill-name" title="${this._escapeHtml(skill.name)}">${this._escapeHtml(skill.name)}</span>
+              </div>
+              <div class="header-right">
+                 ${buttonHtml}
+              </div>
             </div>
-            <div class="skill-description">${this._escapeHtml(skill.description || 'No description')}</div>
+            <div class="skill-meta">
+               ${this._escapeHtml(skill.description || '')}
+            </div>
+            
+            <div class="skill-details hidden" id="details-${this._escapeHtml(skill.name)}">
+               <div class="detail-loading">Loading details...</div>
+               <div class="detail-content hidden">
+                  <div class="section-title">Description</div>
+                  <div class="full-description"></div>
+                  
+                  <div class="section-title">Install Command</div>
+                  <div class="install-block">
+                    <code class="cmd-text"></code>
+                    <button class="copy-btn" onclick="copyCmd('${this._escapeHtml(skill.name)}')">Copy</button>
+                  </div>
+                  
+                  <div class="links">
+                    <a href="${repoUrl}" target="_blank">View Repository</a>
+                  </div>
+               </div>
+            </div>
           </div>
         `;
         })
@@ -680,6 +737,86 @@ export class MarketPanel {
       display: flex;
       gap: 8px;
     }
+    
+    /* New Styles */
+    .header-left { display: flex; align-items: center; gap: 5px; overflow: hidden; }
+    .header-right { flex-shrink: 0; }
+    
+    .expand-btn {
+      background: none;
+      color: var(--vscode-foreground);
+      padding: 0 4px;
+      min-width: 20px;
+      font-size: 10px;
+    }
+    .expand-btn:hover { background: var(--vscode-toolbar-hoverBackground); }
+    .expand-btn.expanded { transform: rotate(90deg); }
+    
+    .skill-meta {
+      font-size: 0.85em;
+      color: var(--vscode-descriptionForeground);
+      margin-left: 25px; /* Indent to align with text */
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .skill-details {
+      margin-top: 10px;
+      padding: 10px;
+      background: var(--vscode-editor-background);
+      border-radius: 4px;
+      border: 1px solid var(--vscode-editorGroup-border);
+      margin-left: 25px;
+    }
+    .skill-details.hidden { display: none; }
+    
+    .section-title {
+      font-weight: bold;
+      font-size: 0.8em;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+      margin-top: 10px;
+      color: var(--vscode-textPreformat-foreground);
+    }
+    .section-title:first-child { margin-top: 0; }
+    
+    .full-description {
+      font-size: 0.9em;
+      line-height: 1.4em;
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+    }
+    
+    .install-block {
+      display: flex;
+      background: var(--vscode-textBlockQuote-background);
+      border: 1px solid var(--vscode-textBlockQuote-border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .cmd-text {
+      flex-grow: 1;
+      padding: 6px;
+      font-family: monospace;
+      font-size: 0.9em;
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+    .copy-btn {
+      border-radius: 0;
+      background: var(--vscode-button-secondaryBackground);
+    }
+    
+    .links {
+      margin-top: 10px;
+      font-size: 0.9em;
+    }
+    .links a { color: var(--vscode-textLink-foreground); text-decoration: none; }
+    .links a:hover { text-decoration: underline; }
+    
+    .detail-loading { font-style: italic; color: var(--vscode-descriptionForeground); }
+    .detail-content.hidden { display: none; }
   </style>
 </head>
 <body>
@@ -796,14 +933,56 @@ export class MarketPanel {
       }
     });
 
-    function addMarket() {
-      vscode.postMessage({ command: 'addMarket' });
-    }
-
     function deleteMarket() {
       const select = document.getElementById('marketSelect');
       vscode.postMessage({ command: 'deleteMarket', marketName: select.value });
     }
+    
+    // Expand/Collapse Logic
+    function toggleDetails(skillName) {
+      const details = document.getElementById('details-' + skillName);
+      const btn = document.querySelector('#card-' + skillName + ' .expand-btn');
+      
+      if (details.classList.contains('hidden')) {
+        details.classList.remove('hidden');
+        btn.classList.add('expanded');
+        btn.innerText = '▼';
+      } else {
+        details.classList.add('hidden');
+        btn.classList.remove('expanded');
+        btn.innerText = '▶';
+      }
+    }
+    
+    function copyCmd(skillName) {
+      const card = document.getElementById('card-' + skillName);
+      const cmd = card.querySelector('.cmd-text').innerText;
+      navigator.clipboard.writeText(cmd);
+    }
+
+    // Handle updates from extension
+    window.addEventListener('message', event => {
+      const message = event.data;
+      if (message.command === 'updateSkill') {
+        const card = document.getElementById('card-' + message.skillName);
+        if (!card) return;
+        
+        const details = card.querySelector('.skill-details');
+        const loading = details.querySelector('.detail-loading');
+        const content = details.querySelector('.detail-content');
+        
+        loading.style.display = 'none';
+        content.classList.remove('hidden');
+        
+        if (message.description) {
+           content.querySelector('.full-description').innerText = message.description;
+        }
+        if (message.installCmd) {
+           content.querySelector('.cmd-text').innerText = message.installCmd;
+        }
+      }
+    });
+
   </script>
 </body>
 </html>`;
