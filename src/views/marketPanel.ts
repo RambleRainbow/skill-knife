@@ -169,10 +169,10 @@ export class MarketPanel {
       // Map to MarketSkill
       this._skills = results.map(r => ({
         name: r.name, // e.g. "docker-expert"
-        description: `Source: ${r.topSource} | Installs: ${r.installs}`, // Encode metadata in description
+        description: `Installs: ${r.installs}`, // Store installs in description for now
         market: this._currentMarket!,
         repoPath: r.topSource, // e.g. "sickn33/antigravity-awesome-skills"
-        subpath: r.name, // BEST GUESS: assume skill name matches directory name
+        subpath: r.name,
         commitHash: 'HEAD'
       }));
 
@@ -562,36 +562,53 @@ export class MarketPanel {
 
           // Enhanced Card Design with Details Section
           const repoUrl = skill.repoPath.startsWith('http') ? skill.repoPath : `https://github.com/${skill.repoPath}`;
+          // For non-global markets, description is actual description. For global, it's the install count if we use our hack.
+          const installCount = skill.description && skill.description.startsWith('Installs:') ? skill.description : '';
+
+          let metaHtml = '';
+          const isGlobal = this._currentMarket?.name === SKILL_SH_MARKET.name;
+
+          if (isGlobal) {
+            metaHtml = `
+                <div class="meta-stack">
+                   <a href="${repoUrl}" class="meta-source" onclick="event.stopPropagation()">${this._escapeHtml(skill.repoPath)}</a>
+                   <span class="meta-installs">${this._escapeHtml(installCount)}</span>
+                </div>
+              `;
+          } else {
+            metaHtml = `<div class="meta-desc">${this._escapeHtml(skill.description || '')}</div>`;
+          }
 
           return `
-          <div class="skill-card" id="card-${this._escapeHtml(skill.name)}" data-search-content="${searchContent}">
+          <div class="skill-card" id="card-${this._escapeHtml(skill.name)}" data-search-content="${searchContent}" onclick="toggleDetails('${this._escapeHtml(skill.name)}', event)">
             <div class="skill-header">
               <div class="header-left">
-                 <button class="expand-btn" onclick="toggleDetails('${this._escapeHtml(skill.name)}')">▶</button>
+                 <span class="expand-indicator">▶</span>
                  <span class="skill-name" title="${this._escapeHtml(skill.name)}">${this._escapeHtml(skill.name)}</span>
               </div>
               <div class="header-right">
-                 ${buttonHtml}
+                 ${metaHtml}
+                 <div onclick="event.stopPropagation()">${buttonHtml}</div>
               </div>
-            </div>
-            <div class="skill-meta">
-               ${this._escapeHtml(skill.description || '')}
             </div>
             
             <div class="skill-details hidden" id="details-${this._escapeHtml(skill.name)}">
-               <div class="detail-loading">Loading details...</div>
-               <div class="detail-content hidden">
-                  <div class="section-title">Description</div>
-                  <div class="full-description"></div>
+               <div class="detail-loading" ${isGlobal ? '' : 'style="display:none"'}>Loading details...</div>
+               
+               <div class="detail-content ${isGlobal ? 'hidden' : ''}">
+                  <div class="section-title">Overview</div>
+                  <div class="full-description">${isGlobal ? '' : this._escapeHtml(skill.description || '')}</div>
                   
-                  <div class="section-title">Install Command</div>
-                  <div class="install-block">
-                    <code class="cmd-text"></code>
-                    <button class="copy-btn" onclick="copyCmd('${this._escapeHtml(skill.name)}')">Copy</button>
+                  <div class="install-section ${isGlobal ? '' : 'hidden'}">
+                      <div class="section-title">Install Command</div>
+                      <div class="install-block">
+                        <code class="cmd-text"></code>
+                        <button class="copy-btn" onclick="copyCmd('${this._escapeHtml(skill.name)}', event)">Copy</button>
+                      </div>
                   </div>
-                  
+
                   <div class="links">
-                    <a href="${repoUrl}" target="_blank">View Repository</a>
+                    <a href="${repoUrl}" target="_blank" onclick="event.stopPropagation()">View Repository</a>
                   </div>
                </div>
             </div>
@@ -739,35 +756,69 @@ export class MarketPanel {
     }
     
     /* New Styles */
+    .skill-card {
+        cursor: pointer;
+        transition: border-color 0.2s;
+    }
+    .skill-card:hover {
+        border-color: var(--vscode-focusBorder);
+    }
+
     .header-left { display: flex; align-items: center; gap: 5px; overflow: hidden; }
-    .header-right { flex-shrink: 0; }
-    
-    .expand-btn {
-      background: none;
-      color: var(--vscode-foreground);
-      padding: 0 4px;
-      min-width: 20px;
-      font-size: 10px;
+    .header-right { 
+        display: flex; 
+        align-items: center; 
+        gap: 10px;
+        flex-shrink: 0; 
     }
-    .expand-btn:hover { background: var(--vscode-toolbar-hoverBackground); }
-    .expand-btn.expanded { transform: rotate(90deg); }
-    
-    .skill-meta {
-      font-size: 0.85em;
+
+    .expand-indicator {
+      display: inline-block;
+      margin-right: 6px;
+      font-size: 0.8em;
+      transition: transform 0.2s ease;
       color: var(--vscode-descriptionForeground);
-      margin-left: 25px; /* Indent to align with text */
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    }
+    .skill-card.expanded .expand-indicator {
+      transform: rotate(90deg);
     }
     
+    .meta-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        font-size: 0.8em;
+        line-height: 1.2;
+    }
+    .meta-source {
+        color: var(--vscode-textLink-foreground);
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .meta-source:hover { text-decoration: underline; }
+    .meta-installs {
+        color: var(--vscode-descriptionForeground);
+        font-size: 0.9em;
+    }
+    .meta-desc {
+        color: var(--vscode-descriptionForeground);
+        font-size: 0.9em;
+        max-width: 200px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .skill-details {
-      margin-top: 10px;
-      padding: 10px;
-      background: var(--vscode-editor-background);
-      border-radius: 4px;
-      border: 1px solid var(--vscode-editorGroup-border);
-      margin-left: 25px;
+      margin-top: 5px;
+      padding-top: 10px;
+      border-top: 1px solid var(--vscode-widget-border);
+      /* Removed indentation and box style for cleaner look */
+      background: transparent;
+      border-radius: 0;
+      border: none;
+      border-top: 1px solid var(--vscode-editor-lineHighlightBorder);
+      margin-left: 0;
     }
     .skill-details.hidden { display: none; }
     
@@ -939,22 +990,25 @@ export class MarketPanel {
     }
     
     // Expand/Collapse Logic
-    function toggleDetails(skillName) {
+    function toggleDetails(skillName, event) {
+      // Logic handled by onclick on card
+      // event.stopPropagation() called on children prevents this from firing for them
+      
       const details = document.getElementById('details-' + skillName);
-      const btn = document.querySelector('#card-' + skillName + ' .expand-btn');
+      const card = document.getElementById('card-' + skillName);
+      if (!details || !card) return;
       
       if (details.classList.contains('hidden')) {
         details.classList.remove('hidden');
-        btn.classList.add('expanded');
-        btn.innerText = '▼';
+        card.classList.add('expanded');
       } else {
         details.classList.add('hidden');
-        btn.classList.remove('expanded');
-        btn.innerText = '▶';
+        card.classList.remove('expanded');
       }
     }
     
-    function copyCmd(skillName) {
+    function copyCmd(skillName, event) {
+      if (event) event.stopPropagation();
       const card = document.getElementById('card-' + skillName);
       const cmd = card.querySelector('.cmd-text').innerText;
       navigator.clipboard.writeText(cmd);
@@ -978,6 +1032,7 @@ export class MarketPanel {
            content.querySelector('.full-description').innerText = message.description;
         }
         if (message.installCmd) {
+           content.querySelector('.install-section').classList.remove('hidden');
            content.querySelector('.cmd-text').innerText = message.installCmd;
         }
       }
