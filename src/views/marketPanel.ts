@@ -6,6 +6,12 @@ import { hasUpdateAvailable } from '../services/updateService';
 import { runOpenSkills, getInstallSource } from '../services/cliService';
 import { PersistenceService } from '../services/persistenceService';
 import { DEFAULT_MARKETS } from '../config/defaults';
+import { SkillShService } from '../services/skillShService';
+
+const SKILL_SH_MARKET: Market = {
+  name: "Global Search (skills.sh)",
+  git: "internal://skills.sh"
+};
 
 export class MarketPanel {
   public static currentPanel: MarketPanel | undefined;
@@ -19,7 +25,7 @@ export class MarketPanel {
 
   private constructor(panel: vscode.WebviewPanel) {
     this._panel = panel;
-    this._markets = getAllMarkets();
+    this._markets = [SKILL_SH_MARKET, ...getAllMarkets()];
     this._currentMarket = this._markets[0];
 
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
@@ -63,6 +69,15 @@ export class MarketPanel {
     this._loading = true;
     this._updateContent();
 
+    if (this._currentMarket?.name === SKILL_SH_MARKET.name) {
+      // For global search, we don't load anything initially
+      // We wait for the user to search
+      this._skills = [];
+      this._loading = false;
+      this._updateContent();
+      return;
+    }
+
     try {
       this._skills = await fetchMarketSkills(this._currentMarket);
     } catch (error) {
@@ -104,7 +119,12 @@ export class MarketPanel {
 
       case 'search':
         this._searchText = message.searchText?.toLowerCase() || '';
-        // No updateContent() to avoid focus loss
+
+        if (this._currentMarket?.name === SKILL_SH_MARKET.name) {
+          // Trigger API search
+          await this._handleGlobalSearch(this._searchText);
+        }
+        // For other markets, filtering is client-side, handled by JS in webview
         break;
 
       case 'refresh':
@@ -129,6 +149,38 @@ export class MarketPanel {
         }
         break;
     }
+  }
+
+  private async _handleGlobalSearch(query: string) {
+    if (!query || query.length < 2) {
+      this._skills = [];
+      this._updateContent();
+      return;
+    }
+
+    this._loading = true;
+    this._updateContent();
+
+    try {
+      const results = await SkillShService.search(query);
+
+      // Map to MarketSkill
+      this._skills = results.map(r => ({
+        name: r.name, // e.g. "docker-expert"
+        description: `Source: ${r.topSource} | Installs: ${r.installs}`, // Encode metadata in description
+        market: this._currentMarket!,
+        repoPath: r.topSource, // e.g. "sickn33/antigravity-awesome-skills"
+        subpath: r.name, // BEST GUESS: assume skill name matches directory name
+        commitHash: 'HEAD'
+      }));
+
+    } catch (error) {
+      vscode.window.showErrorMessage(`Global search failed: ${error}`);
+      this._skills = [];
+    }
+
+    this._loading = false;
+    this._updateContent();
   }
 
   private async _installAllVisible() {
@@ -386,7 +438,8 @@ export class MarketPanel {
     vscode.window.showInformationMessage(`Added market "${name}"`);
 
     // Refresh markets list and UI
-    this._markets = getAllMarkets(); // Reload from source
+    // Refresh markets list and UI
+    this._markets = [SKILL_SH_MARKET, ...getAllMarkets()]; // Reload from source
 
     // Select the new market
     this._currentMarket = this._markets.find(m => m.name === name);
@@ -417,7 +470,8 @@ export class MarketPanel {
     vscode.window.showInformationMessage(`Deleted market "${name}"`);
 
     // Reload
-    this._markets = getAllMarkets();
+    // Reload
+    this._markets = [SKILL_SH_MARKET, ...getAllMarkets()];
 
     // Fallback to first market if current was deleted
     if (this._currentMarket?.name === name) {
@@ -438,7 +492,7 @@ export class MarketPanel {
 
     const marketOptions = this._markets
       .map((m) => {
-        const isCustom = !DEFAULT_MARKETS.some(dm => dm.name === m.name);
+        const isCustom = !DEFAULT_MARKETS.some(dm => dm.name === m.name) && m.name !== SKILL_SH_MARKET.name;
         const displayName = isCustom ? `${m.name} *` : m.name;
         const selected = m.name === this._currentMarket?.name ? 'selected' : '';
         return `<option value="${this._escapeHtml(m.name)}" ${selected}>${this._escapeHtml(displayName)}</option>`;
@@ -455,6 +509,10 @@ export class MarketPanel {
       skillsHtml = '<div class="empty">No skills found in this market</div>';
     } else {
       // Allow client-side filtering: render ALL skills
+      // For Global Search, 'this._skills' is already the result of the search query
+      // For Standard Markets, we filter again in JS but we should pass all
+
+
       skillsHtml = this._skills
         .map((skill) => {
           const isInstalled = installedNames.has(skill.name);
@@ -680,21 +738,32 @@ export class MarketPanel {
     }
 
     function search(text) {
-      const lowerText = text.toLowerCase();
-      const cards = document.querySelectorAll('.skill-card');
-      let visibleCount = 0;
+      // Client-side debounce
+      if (window.searchTimeout) clearTimeout(window.searchTimeout);
+      
+      const isGlobal = document.getElementById('marketSelect').value === 'Global Search (skills.sh)';
+      
+      // Immediate local filter for non-global
+      if (!isGlobal) {
+        filterLocal(text);
+      }
 
-      cards.forEach(card => {
+      window.searchTimeout = setTimeout(() => {
+        vscode.postMessage({ command: 'search', searchText: text });
+      }, 500);
+    }
+    
+    function filterLocal(text) {
+       const lowerText = text.toLowerCase();
+       const cards = document.querySelectorAll('.skill-card');
+       cards.forEach(card => {
         const content = card.getAttribute('data-search-content') || '';
         if (content.includes(lowerText)) {
           card.classList.remove('hidden');
-          visibleCount++;
         } else {
           card.classList.add('hidden');
         }
       });
-
-      vscode.postMessage({ command: 'search', searchText: text });
     }
 
     function refresh() {
@@ -709,13 +778,24 @@ export class MarketPanel {
       vscode.postMessage({ command: 'uninstallAll' });
     }
     
-    // Initialize search state
-    // document.addEventListener('DOMContentLoaded', () => {
-    //   const input = document.querySelector('.search-box');
-    //   if (input && input.value) {
-    //     search(input.value);
-    //   }
-    // });
+    // Initialize state
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.querySelector('.search-box');
+      if (input) {
+        // Restore focus if we have a value (implies we just searched/reloaded)
+        if (input.value) {
+           input.focus();
+           // Move cursor to end
+           const len = input.value.length;
+           input.setSelectionRange(len, len);
+           
+           // If local market, re-apply filter to be safe (visual sync)
+           const isGlobal = document.getElementById('marketSelect').value === 'Global Search (skills.sh)';
+           if (!isGlobal) filterLocal(input.value);
+        }
+      }
+    });
+
     function addMarket() {
       vscode.postMessage({ command: 'addMarket' });
     }
