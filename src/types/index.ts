@@ -34,14 +34,18 @@ export interface SkillInstallation {
 }
 
 /**
- * Metadata from .openskills.json
+ * Metadata from .skill-lock.json or legacy .openskills.json
  */
 export interface SkillMetadata {
-  source?: string;
-  sourceType?: string;
-  repoUrl?: string;
+  source?: string; // owner/repo
+  sourceType?: string; // e.g. "github"
+  repoUrl?: string; // e.g. "https://github.com/..."
+  sourceUrl?: string; // e.g. "https://github.com/..." (from lockfile)
   subpath?: string;
+  skillPath?: string; // e.g. "skills/foo/SKILL.md" (from lockfile)
+  skillFolderHash?: string; // (from lockfile)
   installedAt?: string;
+  updatedAt?: string; // (from lockfile)
 }
 
 /**

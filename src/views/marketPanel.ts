@@ -3,7 +3,8 @@ import { Market } from '../types';
 import { MarketSkill, fetchMarketSkills, getAllMarkets } from '../services/marketService';
 import { scanSkills } from '../services/skillScanner';
 import { hasUpdateAvailable } from '../services/updateService';
-import { runOpenSkills, getInstallSource } from '../services/cliService';
+import { deleteSkill } from '../services/installService';
+import { runSkillsCliInteractive, getInstallArgs } from '../services/cliService';
 import { PersistenceService } from '../services/persistenceService';
 import { DEFAULT_MARKETS } from '../config/defaults';
 import { SkillShService } from '../services/skillShService';
@@ -291,9 +292,9 @@ export class MarketPanel {
         for (const skill of skillsToInstall) {
           progress.report({ message: `Installing ${skill.name} (${++count}/${total})...` });
           try {
-            const source = getInstallSource(skill);
-            // Universal Install
-            await runOpenSkills(['install', source, '--universal']);
+            // Interactive install to project
+            // This will open multiple terminals if done in loop, but intended for "transform"
+            runSkillsCliInteractive(['add', ...getInstallArgs(skill), '--all', '-y']);
           } catch (error) {
             console.error(`Failed to install ${skill.name}:`, error);
             errors.push(`${skill.name}: ${error}`);
@@ -305,7 +306,7 @@ export class MarketPanel {
             `Installed ${total - errors.length}/${total} skills. Failures: ${errors.join(', ')}`
           );
         } else {
-          vscode.window.showInformationMessage(`Successfully installed ${total} skills.`);
+          vscode.window.showInformationMessage(`Launched installation for ${total} skills.`);
         }
       }
     );
@@ -331,13 +332,16 @@ export class MarketPanel {
 
     const skillsToUninstall = visibleSkills.filter((s) => installedNames.has(s.name));
 
-    if (skillsToUninstall.length === 0) {
+    // Map visible market skills to actual installed Skill objects
+    const targets = installedSkills.filter(s => skillsToUninstall.some(m => m.name === s.name));
+
+    if (targets.length === 0) {
       vscode.window.showInformationMessage('No installed skills found in current view.');
       return;
     }
 
     const confirm = await vscode.window.showWarningMessage(
-      `Uninstall ${skillsToUninstall.length} skills from this market?`,
+      `Uninstall ${targets.length} skills from this market?`,
       { modal: true },
       'Yes, Uninstall All'
     );
@@ -355,13 +359,13 @@ export class MarketPanel {
       },
       async (progress) => {
         let count = 0;
-        const total = skillsToUninstall.length;
+        const total = targets.length;
         const errors: string[] = [];
 
-        for (const skill of skillsToUninstall) {
+        for (const skill of targets) {
           progress.report({ message: `Uninstalling ${skill.name} (${++count}/${total})...` });
           try {
-            await runOpenSkills(['remove', skill.name]);
+            deleteSkill(skill);
           } catch (error) {
             console.error(`Failed to uninstall ${skill.name}:`, error);
             errors.push(`${skill.name}: ${error}`);
@@ -391,26 +395,14 @@ export class MarketPanel {
 
     // Direct Install (Project + Universal)
     try {
-      await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: `Installing ${skill.name}...`,
-          cancellable: false,
-        },
-        async () => {
-          const source = getInstallSource(skill);
-          // Universal Install
-          await runOpenSkills(['install', source, '--universal']);
-        }
-      );
+      const args = ['add', ...getInstallArgs(skill), '--all', '-y'];
 
-      vscode.window.showInformationMessage(`Successfully installed ${skill.name} (Universal)`);
+      // We can't easily wait for interactive terminal, so we show info and launch
+      runSkillsCliInteractive(args);
 
-      // Refresh the sidebar
-      vscode.commands.executeCommand('skillKnife.refresh');
+      vscode.window.showInformationMessage(`Launched installation for ${skill.name}. Check terminal.`);
 
-      // Update the market panel to show installed status
-      this._updateContent();
+      // We can't verify immediately, so we don't refresh automatically here
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to install ${skill.name}: ${error}`);
     }
@@ -422,28 +414,13 @@ export class MarketPanel {
       return;
     }
 
-    // Direct Update (Re-install Project + Universal)
+    // Direct Update using "add" to reinstall/update
     try {
-      await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: `Updating ${skill.name}...`,
-          cancellable: false,
-        },
-        async () => {
-          const source = getInstallSource(skill);
-          // Universal Install
-          await runOpenSkills(['install', source, '--universal']);
-        }
-      );
+      const args = ['add', ...getInstallArgs(skill), '--all', '-y'];
 
-      vscode.window.showInformationMessage(`Successfully updated ${skill.name}`);
+      runSkillsCliInteractive(args);
 
-      // Refresh the sidebar
-      vscode.commands.executeCommand('skillKnife.refresh');
-
-      // Update the market panel
-      this._updateContent();
+      vscode.window.showInformationMessage(`Launched update for ${skill.name}. Check terminal.`);
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to update ${skill.name}: ${error}`);
     }
@@ -451,6 +428,15 @@ export class MarketPanel {
 
   private async _showUninstallDialog(skillName: string) {
     try {
+      // Find installed skill to delete
+      const installedSkills = scanSkills();
+      const skill = installedSkills.find(s => s.name === skillName);
+
+      if (!skill) {
+        vscode.window.showErrorMessage(`Skill ${skillName} is not recognized as installed.`);
+        return;
+      }
+
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
@@ -458,8 +444,8 @@ export class MarketPanel {
           cancellable: false,
         },
         async () => {
-          // Attempt to remove
-          try { await runOpenSkills(['remove', skillName]); } catch (e) { }
+          // Use internal delete service since 'remove' CLI command doesn't exist
+          deleteSkill(skill);
         }
       );
 

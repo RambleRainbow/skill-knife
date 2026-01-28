@@ -42,20 +42,44 @@ function parseSkillDescription(skillPath: string): string | undefined {
 }
 
 /**
- * Parse .openskills.json metadata
+ * Parse .skill-lock.json metadata
  */
-function parseSkillMetadata(skillPath: string): SkillMetadata | undefined {
-  const metaPath = path.join(skillPath, '.openskills.json');
-  if (!fs.existsSync(metaPath)) {
-    return undefined;
+let lockFileCache: any = null;
+let lastLockRead = 0;
+
+function getSkillLockMetadata(skillName: string): SkillMetadata | undefined {
+  const lockPath = path.join(os.homedir(), '.agents', '.skill-lock.json');
+
+  // Simple cache (1 second) to avoid reading file for every skill in loop
+  if (!lockFileCache || Date.now() - lastLockRead > 1000) {
+    if (fs.existsSync(lockPath)) {
+      try {
+        const content = fs.readFileSync(lockPath, 'utf-8');
+        lockFileCache = JSON.parse(content);
+        lastLockRead = Date.now();
+      } catch {
+        lockFileCache = { skills: {} };
+      }
+    } else {
+      lockFileCache = { skills: {} };
+    }
   }
 
-  try {
-    const content = fs.readFileSync(metaPath, 'utf-8');
-    return JSON.parse(content) as SkillMetadata;
-  } catch {
-    // Ignore parse errors
+  const skillEntry = lockFileCache.skills?.[skillName];
+  if (skillEntry) {
+    return {
+      source: skillEntry.source,
+      sourceType: skillEntry.sourceType,
+      repoUrl: skillEntry.sourceUrl, // Map sourceUrl to repoUrl (or keep both if type allows)
+      sourceUrl: skillEntry.sourceUrl,
+      subpath: skillEntry.skillPath ? path.dirname(skillEntry.skillPath) : undefined, // skillPath is usually "skills/name/SKILL.md"
+      skillPath: skillEntry.skillPath,
+      skillFolderHash: skillEntry.skillFolderHash,
+      installedAt: skillEntry.installedAt,
+      updatedAt: skillEntry.updatedAt
+    };
   }
+
   return undefined;
 }
 
@@ -140,7 +164,7 @@ export function scanSkills(): Skill[] {
       name,
       description: parseSkillDescription(firstPath),
       installations,
-      metadata: parseSkillMetadata(firstPath),
+      metadata: getSkillLockMetadata(name),
     });
   }
 

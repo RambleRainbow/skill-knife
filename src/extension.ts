@@ -4,8 +4,7 @@ import { SkillDetailPanel } from './views/skillDetailPanel';
 import { MarketPanel } from './views/marketPanel';
 import { Skill } from './types';
 import { deleteSkill } from './services/installService';
-import { updateAllSkills } from './services/updateService';
-import { initCliService, runOpenSkills, getInstallSource } from './services/cliService';
+import { initCliService, runSkillsCliInteractive, getInstallSource, getInstallArgs } from './services/cliService';
 import { PersistenceService } from './services/persistenceService';
 import { scanSkills } from './services/skillScanner';
 
@@ -78,28 +77,10 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register update all command
   const updateAllCmd = vscode.commands.registerCommand('skillKnife.updateAll', async () => {
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: 'Checking for updates...',
-        cancellable: false,
-      },
-      async (progress) => {
-        try {
-          const updated = await updateAllSkills((message) => progress.report({ message }));
-          if (updated.length > 0) {
-            vscode.window.showInformationMessage(
-              `Updated ${updated.length} skills: ${updated.join(', ')}`
-            );
-            treeDataProvider.refresh();
-          } else {
-            vscode.window.showInformationMessage('All skills are up to date');
-          }
-        } catch (error) {
-          vscode.window.showErrorMessage(`Failed to update skills: ${error}`);
-        }
-      }
-    );
+    // New behavior: Run interactive update command
+    // "npx skills update" is supported by skills CLI
+    runSkillsCliInteractive(['update']);
+    vscode.window.showInformationMessage('Launched "npx skills update" in terminal.');
   });
 
   // Handle configuration changes (only grouping)
@@ -126,7 +107,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register open repo command
   const openRepoCmd = vscode.commands.registerCommand('skillKnife.openRepo', async (item: SkillTreeItem) => {
-    const url = item.skill.metadata?.repoUrl;
+    const url = item.skill.metadata?.repoUrl || item.skill.metadata?.sourceUrl;
     if (url) {
       vscode.env.openExternal(vscode.Uri.parse(url));
     } else {
@@ -137,46 +118,43 @@ export function activate(context: vscode.ExtensionContext) {
   // Project Commands
   const installProjectCmd = vscode.commands.registerCommand('skillKnife.installProject', async (item: SkillTreeItem) => {
     try {
-      const source = getInstallSource(item.skill);
-      await runOpenSkills(['install', source]);
-      vscode.window.showInformationMessage(`Installed ${item.skill.name} to Project`);
-      treeDataProvider.refresh();
+      // Interactive install to project
+      runSkillsCliInteractive(['add', ...getInstallArgs(item.skill), '--all', '-y']);
     } catch (e) {
-      // Error handled in runOpenSkills
+      vscode.window.showErrorMessage('Failed to launch installation');
     }
   });
 
   const uninstallProjectCmd = vscode.commands.registerCommand('skillKnife.uninstallProject', async (item: SkillTreeItem) => {
     try {
-      await runOpenSkills(['remove', item.skill.name]);
-      vscode.window.showInformationMessage(`Uninstalled ${item.skill.name} from Project`);
-      treeDataProvider.refresh();
+      // Uninstall assumes global removal for now since we don't have granular CLI uninstall
+      // Or we can delete just the project installation if we want to be nice
+      const projectInstall = item.skill.installations.find(i => i.scope === 'project');
+      if (projectInstall) {
+        // This is a bit manual, but safer than nuking all?
+        // installService.deleteSkill removes everything.
+        // Let's stick to full delete for consistency with "uninstall" meaning usually
+        const confirm = await vscode.window.showWarningMessage(
+          `Uninstall ${item.skill.name}? This will remove it from all scopes.`,
+          { modal: true },
+          'Uninstall'
+        );
+        if (confirm === 'Uninstall') {
+          deleteSkill(item.skill);
+          vscode.window.showInformationMessage(`Uninstalled ${item.skill.name}`);
+          treeDataProvider.refresh();
+        }
+      }
     } catch (e) { }
   });
 
   // Global Commands
   const installGlobalCmd = vscode.commands.registerCommand('skillKnife.installGlobal', async (_item: SkillTreeItem) => {
-    // Global installation disabled - visual only
-    /*
-    try {
-      const source = getInstallSource(item.skill);
-      await runOpenSkills(['install', source, '--global']);
-      vscode.window.showInformationMessage(`Installed ${item.skill.name} Globally`);
-      treeDataProvider.refresh();
-    } catch (e) { }
-    */
+    // Visual only
   });
 
   const uninstallGlobalCmd = vscode.commands.registerCommand('skillKnife.uninstallGlobal', async (_item: SkillTreeItem) => {
-    // Global uninstallation disabled - visual only
-    /*
-    try {
-      const source = getInstallSource(item.skill);
-      await runOpenSkills(['remove', source]);
-      vscode.window.showInformationMessage(`Uninstalled ${item.skill.name} Globally`);
-      treeDataProvider.refresh();
-    } catch (e) { }
-    */
+    // Visual only
   });
 
   context.subscriptions.push(
@@ -252,7 +230,7 @@ export function activate(context: vscode.ExtensionContext) {
       // Calculate removals (Sync logic enabled by default)
       const toRemove = currentSkills
         .filter(s => !profileSkillNames.has(s.name) && s.installations.some(i => i.scope === 'project'))
-        .map(s => s.name);
+        .filter(s => s.metadata && s.name); // Type guard
 
       if (toInstall.length === 0 && toRemove.length === 0) {
         vscode.window.showInformationMessage('Project is already in sync with profile.');
@@ -262,50 +240,36 @@ export function activate(context: vscode.ExtensionContext) {
       // Confirmation for destructive Sync
       if (toRemove.length > 0) {
         const confirm = await vscode.window.showWarningMessage(
-          `Syncing will remove ${toRemove.length} extra skills: ${toRemove.join(', ')}. Continue?`,
+          `Syncing will remove ${toRemove.length} extra skills: ${toRemove.map(s => s.name).join(', ')}. Continue?`,
           { modal: true },
           'Yes, Sync'
         );
         if (confirm !== 'Yes, Sync') return;
       }
 
-      await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: `Syncing profile "${selected.label}"...`,
-          cancellable: false
-        },
-        async (progress) => {
-          // 1. Remove extras
-          if (toRemove.length > 0) {
-            let rmCount = 0;
-            for (const name of toRemove) {
-              progress.report({ message: `Removing ${name} (${++rmCount}/${toRemove.length})...` });
-              try {
-                await runOpenSkills(['remove', name]);
-              } catch (e) {
-                console.error(`Failed to remove ${name}:`, e);
-              }
-            }
-          }
-
-          // 2. Install missing
-          if (toInstall.length > 0) {
-            let instCount = 0;
-            for (const skill of toInstall) {
-              progress.report({ message: `Installing ${skill.name} (${++instCount}/${toInstall.length})...` });
-              try {
-                await runOpenSkills(['install', skill.source, '--universal']);
-              } catch (e) {
-                console.error(`Failed to install ${skill.name}:`, e);
-                vscode.window.showErrorMessage(`Failed to install ${skill.name}: ${e}`);
-              }
-            }
+      // 1. Remove extras
+      if (toRemove.length > 0) {
+        for (const skill of toRemove) {
+          try {
+            deleteSkill(skill);
+          } catch (e) {
+            console.error(`Failed to remove ${skill.name}:`, e);
           }
         }
-      );
+      }
 
-      vscode.window.showInformationMessage(`Profile synced successfully.`);
+      // 2. Install missing
+      if (toInstall.length > 0) {
+        for (const skill of toInstall) {
+          try {
+            runSkillsCliInteractive(['add', skill.source, '--universal']);
+          } catch (e) {
+            // error
+          }
+        }
+        vscode.window.showInformationMessage(`Launched installation for missing skills. Check terminal.`);
+      }
+
       treeDataProvider.refresh();
     })
   );
