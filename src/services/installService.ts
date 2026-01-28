@@ -50,8 +50,13 @@ export function getAvailableReaders(): SkillReader[] {
  * Delete a skill installation
  */
 export function deleteSkillInstallation(installation: SkillInstallation): void {
-  if (fs.existsSync(installation.path)) {
+  try {
+    // force: true ignores potential ENOENT (if file doesn't exist)
+    // We do NOT check fs.existsSync because it returns false for broken symlinks,
+    // preventing us from cleaning them up if the source was deleted first.
     fs.rmSync(installation.path, { recursive: true, force: true });
+  } catch (e) {
+    console.error(`Failed to delete ${installation.path}:`, e);
   }
 }
 
