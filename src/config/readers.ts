@@ -7,8 +7,15 @@ import { SkillReader } from '../types';
 export const DEFAULT_READERS: SkillReader[] = [
   {
     id: 'amp',
-    name: 'Amp, Kimi Code CLI',
+    name: 'Amp',
     shortName: 'AMP',
+    globalPath: '~/.config/agents/skills',
+    projectPath: '.agents/skills',
+  },
+  {
+    id: 'kimi-cli',
+    name: 'Kimi Code CLI',
+    shortName: 'KIMI',
     globalPath: '~/.config/agents/skills',
     projectPath: '.agents/skills',
   },

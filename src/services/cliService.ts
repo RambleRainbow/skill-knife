@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
+import * as os from 'os';
 import { Skill } from '../types';
 import { MarketSkill } from './marketService';
 
@@ -22,77 +23,70 @@ export function log(message: string) {
     }
 }
 
+
 /**
- * Run skills CLI command (non-interactive)
+ * Run skills CLI command (spawn process with live output)
  */
-export function runSkillsCli(args: string[]): Promise<void> {
-    return new Promise((resolve, reject) => {
-        const cmd = 'npx skills';
-        const fullCmd = `${cmd} ${args.join(' ')}`;
+export function runSkillsCli(args: string[]): Thenable<void> {
+    const cmd = 'npx';
+    const cmdArgs = ['skills', ...args];
+    const fullCmd = `${cmd} ${cmdArgs.join(' ')}`;
 
-        // Log the command
-        if (outputChannel) {
-            outputChannel.appendLine(`\n> Running: ${fullCmd}`);
-            outputChannel.show(true);
-        }
+    if (outputChannel) {
+        outputChannel.appendLine(`\n> Running: ${fullCmd}`);
+        outputChannel.show(true);
+    }
 
-        vscode.window.withProgress(
-            {
-                location: vscode.ProgressLocation.Notification,
-                title: `Running: skills ${args.join(' ')}`,
-                cancellable: false,
-            },
-            async (_) => {
+    return vscode.window.withProgress(
+        {
+            location: vscode.ProgressLocation.Notification,
+            title: `Executing: skills ${args.join(' ')}`,
+            cancellable: true,
+        },
+        (_progress, token) => {
+            return new Promise<void>((resolve, reject) => {
                 const workspaceFolders = vscode.workspace.workspaceFolders;
-                const cwd = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0].uri.fsPath : undefined;
+                const cwd = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0].uri.fsPath : os.homedir();
 
-                cp.exec(fullCmd, { cwd }, (error, stdout, stderr) => {
-                    if (outputChannel) {
-                        if (stdout) {
-                            outputChannel.appendLine(stdout);
-                        }
-                        if (stderr) {
-                            outputChannel.appendLine(`[STDERR]: ${stderr}`);
-                        }
-                    }
+                const child = cp.spawn(cmd, cmdArgs, { cwd, shell: true });
 
-                    if (error) {
-                        if (outputChannel) {
-                            outputChannel.appendLine(`[ERROR]: ${error.message}`);
-                        }
-                        vscode.window.showErrorMessage(`Skills CLI failed: ${error.message}\n${stderr}`);
-                        reject(error);
-                    } else {
+                token.onCancellationRequested(() => {
+                    child.kill();
+                    reject(new Error('User cancelled operation'));
+                });
+
+                child.stdout.on('data', (data) => {
+                    outputChannel?.append(data.toString());
+                });
+
+                child.stderr.on('data', (data) => {
+                    outputChannel?.append(data.toString());
+                });
+
+                child.on('close', (code) => {
+                    if (code === 0) {
+                        outputChannel?.appendLine('Command finished successfully.');
                         resolve();
+                    } else {
+                        outputChannel?.appendLine(`Command failed with exit code ${code}`);
+                        reject(new Error(`Command failed with exit code ${code}`));
                     }
                 });
-            }
-        );
-    });
+
+                child.on('error', (err) => {
+                    outputChannel?.appendLine(`Spawn error: ${err.message}`);
+                    reject(err);
+                });
+            });
+        }
+    );
 }
 
 /**
- * Run skills CLI command in interactive terminal
+ * Run skills CLI command (alias for runSkillsCli for backward compatibility)
  */
-let activeTerminal: vscode.Terminal | undefined;
-
-export function runSkillsCliInteractive(args: string[]): void {
-    const cmd = `npx skills ${args.join(' ')}`;
-
-    // Reuse existing terminal if it exists and hasn't been disposed
-    if (!activeTerminal || activeTerminal.exitStatus !== undefined) {
-        // Check if there is already a terminal named "Skill Knife Interactive" in vscode.window.terminals
-        // (This handles case where user manually closed it or reload happened)
-        const existing = vscode.window.terminals.find(t => t.name === 'Skill Knife Interactive');
-        if (existing) {
-            activeTerminal = existing;
-        } else {
-            activeTerminal = vscode.window.createTerminal('Skill Knife Interactive');
-        }
-    }
-
-    activeTerminal.show();
-    activeTerminal.sendText(cmd);
+export function runSkillsCliInteractive(args: string[]): Thenable<void> {
+    return runSkillsCli(args);
 }
 
 /**
@@ -149,4 +143,20 @@ export function getInstallSource(skill: Skill | MarketSkill): string {
     const args = getInstallArgs(skill);
     // Return just the repo URL as "source" for display/profile
     return args[0];
+}
+// ... (existing code)
+
+/**
+ * Generate --agent arguments from preferred list, filtering out internal IDs
+ */
+export function getAgentArgs(preferredAgents: string[]): string[] {
+    // 'skills-cli' is our internal ID for universal/default path, not a valid CLI agent ID
+    const validAgents = preferredAgents.filter(id => id !== 'skills-cli');
+
+    if (validAgents.length === 0) {
+        // If no specific valid agents selected (or only skills-cli), default to --all
+        return ['--all'];
+    }
+
+    return validAgents.flatMap(id => ['--agent', id]);
 }

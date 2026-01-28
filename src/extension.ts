@@ -4,7 +4,7 @@ import { SkillDetailPanel } from './views/skillDetailPanel';
 import { MarketPanel } from './views/marketPanel';
 import { Skill } from './types';
 import { deleteSkill } from './services/installService';
-import { initCliService, runSkillsCliInteractive, getInstallSource, getInstallArgs } from './services/cliService';
+import { initCliService, runSkillsCliInteractive, getInstallSource, getInstallArgs, getAgentArgs } from './services/cliService';
 import { PersistenceService } from './services/persistenceService';
 import { scanSkills } from './services/skillScanner';
 
@@ -115,11 +115,13 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
+
+
   // Project Commands
   const installProjectCmd = vscode.commands.registerCommand('skillKnife.installProject', async (item: SkillTreeItem) => {
     try {
       // Interactive install to project
-      runSkillsCliInteractive(['add', ...getInstallArgs(item.skill), '--all', '-y']);
+      runSkillsCliInteractive(['add', ...getInstallArgs(item.skill), ...getAgentArgs(PersistenceService.getPreferredAgents()), '-y']);
     } catch (e) {
       vscode.window.showErrorMessage('Failed to launch installation');
     }

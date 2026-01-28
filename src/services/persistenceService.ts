@@ -6,6 +6,7 @@ import { Market, SkillProfile } from '../types';
 const BASE_DIR = path.join(os.homedir(), '.cache', 'skill-knife');
 const MARKETS_FILE = path.join(BASE_DIR, 'markets.json');
 const PROFILES_FILE = path.join(BASE_DIR, 'profiles.json');
+const SETTINGS_FILE = path.join(BASE_DIR, 'settings.json');
 
 /**
  * Service to manage persistent data (Custom Markets, Profiles)
@@ -93,6 +94,45 @@ export class PersistenceService {
                 console.error('Failed to delete profile:', e);
                 throw e;
             }
+        }
+    }
+
+
+    /**
+     * Get preferred agents for installation
+     */
+    static getPreferredAgents(): string[] {
+        try {
+            if (fs.existsSync(SETTINGS_FILE)) {
+                const content = fs.readFileSync(SETTINGS_FILE, 'utf-8');
+                const data = JSON.parse(content);
+                return Array.isArray(data.preferredAgents) ? data.preferredAgents : [];
+            }
+        } catch (e) {
+            console.error('Failed to read settings:', e);
+        }
+        return [];
+    }
+
+    /**
+     * Save preferred agents
+     */
+    static savePreferredAgents(agents: string[]) {
+        this.ensureDir();
+        try {
+            // Merge with existing settings if we add more later
+            let settings: any = {};
+            if (fs.existsSync(SETTINGS_FILE)) {
+                try {
+                    settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'));
+                } catch { /* ignore */ }
+            }
+
+            settings.preferredAgents = agents;
+            fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+        } catch (e) {
+            console.error('Failed to save settings:', e);
+            throw e;
         }
     }
 }

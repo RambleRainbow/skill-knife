@@ -4,10 +4,11 @@ import { MarketSkill, fetchMarketSkills, getAllMarkets } from '../services/marke
 import { scanSkills } from '../services/skillScanner';
 import { hasUpdateAvailable } from '../services/updateService';
 import { deleteSkill } from '../services/installService';
-import { runSkillsCliInteractive, getInstallArgs } from '../services/cliService';
+import { runSkillsCliInteractive, getInstallArgs, getAgentArgs } from '../services/cliService';
 import { PersistenceService } from '../services/persistenceService';
 import { DEFAULT_MARKETS } from '../config/defaults';
 import { SkillShService } from '../services/skillShService';
+import { getReaders } from '../config/readers';
 
 const SKILL_SH_MARKET: Market = {
   name: "Global Search (skills.sh)",
@@ -107,7 +108,7 @@ export class MarketPanel {
     this._updateContent();
   }
 
-  private async _handleMessage(message: { command: string; marketName?: string; skillName?: string; searchText?: string }) {
+  private async _handleMessage(message: { command: string; marketName?: string; skillName?: string; searchText?: string; agents?: string[] }) {
     switch (message.command) {
       case 'selectMarket':
         const market = this._markets.find((m) => m.name === message.marketName);
@@ -164,6 +165,15 @@ export class MarketPanel {
       case 'deleteMarket':
         if (message.marketName) {
           await this._handleDeleteMarket(message.marketName);
+        }
+        break;
+
+      case 'saveSettings':
+        if (message.agents) {
+          PersistenceService.savePreferredAgents(message.agents);
+          vscode.window.showInformationMessage('Installation settings saved');
+          // No need to reload skills, but maybe update content to reflect state if needed
+          this._updateContent();
         }
         break;
     }
@@ -294,7 +304,7 @@ export class MarketPanel {
           try {
             // Interactive install to project
             // This will open multiple terminals if done in loop, but intended for "transform"
-            runSkillsCliInteractive(['add', ...getInstallArgs(skill), '--all', '-y']);
+            runSkillsCliInteractive(['add', ...getInstallArgs(skill), ...getAgentArgs(PersistenceService.getPreferredAgents()), '-y']);
           } catch (error) {
             console.error(`Failed to install ${skill.name}:`, error);
             errors.push(`${skill.name}: ${error}`);
@@ -395,7 +405,7 @@ export class MarketPanel {
 
     // Direct Install (Project + Universal)
     try {
-      const args = ['add', ...getInstallArgs(skill), '--all', '-y'];
+      const args = ['add', ...getInstallArgs(skill), ...getAgentArgs(PersistenceService.getPreferredAgents()), '-y'];
 
       // We can't easily wait for interactive terminal, so we show info and launch
       runSkillsCliInteractive(args);
@@ -416,7 +426,7 @@ export class MarketPanel {
 
     // Direct Update using "add" to reinstall/update
     try {
-      const args = ['add', ...getInstallArgs(skill), '--all', '-y'];
+      const args = ['add', ...getInstallArgs(skill), ...getAgentArgs(PersistenceService.getPreferredAgents()), '-y'];
 
       runSkillsCliInteractive(args);
 
@@ -537,6 +547,8 @@ export class MarketPanel {
   private _getHtmlContent(): string {
     const installedSkills = scanSkills();
     const installedNames = new Set(installedSkills.map((s) => s.name));
+    const preferred = PersistenceService.getPreferredAgents();
+    const readers = getReaders().map(r => ({ id: r.id, name: r.name }));
 
     const marketOptions = this._markets
       .map((m) => {
@@ -887,6 +899,49 @@ export class MarketPanel {
     
     .detail-loading { font-style: italic; color: var(--vscode-descriptionForeground); }
     .detail-content.hidden { display: none; }
+    
+    /* Modal Styles */
+    .modal {
+        position: fixed;
+        z-index: 100;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.4);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .modal.hidden { display: none; }
+    .modal-content {
+        background-color: var(--vscode-editor-background);
+        border: 1px solid var(--vscode-panel-border);
+        padding: 20px;
+        border-radius: 5px;
+        width: 300px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .agent-list {
+        max-height: 300px;
+        overflow-y: auto;
+        margin: 15px 0;
+        border: 1px solid var(--vscode-widget-border);
+        padding: 5px;
+    }
+    .agent-item {
+        display: flex;
+        align-items: center;
+        padding: 5px;
+        border-bottom: 1px solid var(--vscode-widget-border);
+    }
+    .agent-item:last-child { border-bottom: none; }
+    .agent-item input { margin-right: 10px; }
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
   </style>
 </head>
 <body>
@@ -917,6 +972,9 @@ export class MarketPanel {
         <button class="icon-btn" onclick="refresh()" title="Refresh Market">
           <span class="codicon codicon-refresh">↻</span>
         </button>
+        <button class="icon-btn" onclick="toggleSettings()" title="Installation Settings">
+          <span class="codicon codicon-gear">⚙️</span>
+        </button>
       </div>
     </div>
   </div>
@@ -925,8 +983,25 @@ export class MarketPanel {
     ${skillsHtml}
   </div>
 
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3 style="margin-top:0">Default Install Targets</h3>
+      <div style="font-size:0.9em; color:var(--vscode-descriptionForeground)">Select which agents to install skills to by default.</div>
+      <div id="agent-list" class="agent-list">
+        <!-- Rendered by JS -->
+      </div>
+      <div class="modal-actions">
+         <button onclick="toggleSettings()">Cancel</button>
+         <button onclick="saveSettings()" style="background:var(--vscode-button-background); color:var(--vscode-button-foreground)">Save</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const vscode = acquireVsCodeApi();
+    const PREFERRED_AGENTS = ${JSON.stringify(preferred)};
+    const ALL_AGENTS = ${JSON.stringify(readers)};
 
     function selectMarket(name) {
       vscode.postMessage({ command: 'selectMarket', marketName: name });
@@ -1056,6 +1131,45 @@ export class MarketPanel {
         }
       }
     });
+
+    // Settings Logic
+    function toggleSettings() {
+      const modal = document.getElementById('settings-modal');
+      if (modal.classList.contains('hidden')) {
+        renderSettings();
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    function renderSettings() {
+      const container = document.getElementById('agent-list');
+      container.innerHTML = ALL_AGENTS.map(agent => {
+        // If PREFERRED_AGENTS is empty, we consider it "All Selected" for the UI default state? 
+        // Or should we show them as unchecked? 
+        // Backend logic: Empty = All. 
+        // So visually, if empty, we check ALL? Or check None?
+        // Checking ALL is more representative of behavior.
+        const isAll = PREFERRED_AGENTS.length === 0;
+        const checked = isAll || PREFERRED_AGENTS.includes(agent.id) ? 'checked' : '';
+        return '<div class="agent-item">' +
+             '<input type="checkbox" id="chk-' + agent.id + '" value="' + agent.id + '" ' + checked + '>' +
+             '<label for="chk-' + agent.id + '">' + agent.name + '</label>' +
+          '</div>';
+      }).join('');
+    }
+
+    function saveSettings() {
+      const checkboxes = document.querySelectorAll('#agent-list input[type="checkbox"]');
+      const selected = [];
+      checkboxes.forEach(chk => {
+        if (chk.checked) selected.push(chk.value);
+      });
+      
+      vscode.postMessage({ command: 'saveSettings', agents: selected });
+      toggleSettings();
+    }
 
   </script>
 </body>
