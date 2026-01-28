@@ -41,6 +41,77 @@ export class SkillShService {
     }
 
     /**
+     * Get featured/top skills by scraping the homepage
+     */
+    public static async getFeaturedSkills(): Promise<SkillShResult[]> {
+        try {
+            const response = await axios.get('https://skills.sh', {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
+            });
+            const html = response.data as string;
+
+            const results: SkillShResult[] = [];
+            // Regex to match skill cards on homepage
+            // Looking for links: href="/owner/repo/name" (3 parts)
+            const linkRegex = /<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+            let match;
+
+            while ((match = linkRegex.exec(html)) !== null) {
+                const href = match[1];
+                const content = match[2];
+
+                // Parse href: /owner/repo/name
+                const parts = href.split('/').filter(p => p);
+                if (parts.length === 3 && href.startsWith('/')) {
+                    const topSource = `${parts[0]}/${parts[1]}`;
+                    const name = parts[2];
+
+                    // Parse content for installs
+                    // Usually in the last span: <span ...>9.2K</span>
+                    const installMatch = content.match(/>([\d.]+[KkMm]?)</g);
+                    let installs = 0;
+                    if (installMatch && installMatch.length > 0) {
+                        try {
+                            // Get last match, remove > and <
+                            const raw = installMatch[installMatch.length - 1].replace(/[><]/g, '');
+                            installs = this._parseInstalls(raw);
+                        } catch (e) { /* ignore */ }
+                    }
+
+                    results.push({
+                        id: name,
+                        name: name,
+                        topSource: topSource,
+                        installs: installs
+                    });
+                }
+
+                if (results.length >= 50) break;
+            }
+
+            return results;
+        } catch (error) {
+            console.error('Failed to get featured skills:', error);
+            return [];
+        }
+    }
+
+    private static _parseInstalls(raw: string): number {
+        raw = raw.toUpperCase();
+        let multiplier = 1;
+        if (raw.endsWith('K')) {
+            multiplier = 1000;
+            raw = raw.slice(0, -1);
+        } else if (raw.endsWith('M')) {
+            multiplier = 1000000;
+            raw = raw.slice(0, -1);
+        }
+        return Math.floor(parseFloat(raw) * multiplier);
+    }
+
+    /**
      * Scrape skill details from the website
      */
     public static async getSkillDetails(skill: SkillShResult): Promise<{ description?: string; installCmd?: string }> {

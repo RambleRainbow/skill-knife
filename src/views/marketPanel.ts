@@ -20,6 +20,7 @@ export class MarketPanel {
   private _markets: Market[] = [];
   private _currentMarket: Market | undefined;
   private _skills: MarketSkill[] = [];
+  private _globalCache: MarketSkill[] = [];
   private _loading: boolean = false;
   private _searchText: string = '';
 
@@ -70,9 +71,25 @@ export class MarketPanel {
     this._updateContent();
 
     if (this._currentMarket?.name === SKILL_SH_MARKET.name) {
-      // For global search, we don't load anything initially
-      // We wait for the user to search
-      this._skills = [];
+      if (this._globalCache.length > 0) {
+        this._skills = [...this._globalCache];
+      } else {
+        // Fetch featured skills on first load
+        try {
+          const results = await SkillShService.getFeaturedSkills();
+          this._skills = this._mapSkillShResults(results);
+          this._globalCache = [...this._skills];
+
+          // Background details
+          if (results.length > 0) {
+            this._fetchDetailsInBackground(results);
+          }
+        } catch (e) {
+          console.error('Failed to load featured skills', e);
+          this._skills = [];
+        }
+      }
+
       this._loading = false;
       this._updateContent();
       return;
@@ -153,7 +170,12 @@ export class MarketPanel {
 
   private async _handleGlobalSearch(query: string) {
     if (!query || query.length < 2) {
-      this._skills = [];
+      // Restore default list
+      if (this._globalCache.length > 0) {
+        this._skills = [...this._globalCache];
+      } else {
+        this._skills = [];
+      }
       this._updateContent();
       return;
     }
@@ -188,6 +210,17 @@ export class MarketPanel {
     if (results.length > 0) {
       this._fetchDetailsInBackground(results);
     }
+  }
+
+  private _mapSkillShResults(results: any[]): MarketSkill[] {
+    return results.map(r => ({
+      name: r.name, // e.g. "docker-expert"
+      description: `Installs: ${r.installs}`, // Store installs in description for now
+      market: this._currentMarket!,
+      repoPath: r.topSource, // e.g. "sickn33/antigravity-awesome-skills"
+      subpath: r.name,
+      commitHash: 'HEAD'
+    }));
   }
 
   private async _fetchDetailsInBackground(results: any[]) {
