@@ -121,7 +121,8 @@ export function activate(context: vscode.ExtensionContext) {
   const installProjectCmd = vscode.commands.registerCommand('skillKnife.installProject', async (item: SkillTreeItem) => {
     try {
       // Interactive install to project
-      runSkillsCliInteractive(['add', ...getInstallArgs(item.skill), ...getAgentArgs(PersistenceService.getPreferredAgents()), '-y']);
+      await runSkillsCliInteractive(['add', ...getInstallArgs(item.skill), ...getAgentArgs(PersistenceService.getPreferredAgents()), '-y']);
+      vscode.commands.executeCommand('skillKnife.refresh');
     } catch (e) {
       vscode.window.showErrorMessage('Failed to launch installation');
     }

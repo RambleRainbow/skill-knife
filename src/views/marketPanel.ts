@@ -408,11 +408,13 @@ export class MarketPanel {
       const args = ['add', ...getInstallArgs(skill), ...getAgentArgs(PersistenceService.getPreferredAgents()), '-y'];
 
       // We can't easily wait for interactive terminal, so we show info and launch
-      runSkillsCliInteractive(args);
+      await runSkillsCliInteractive(args);
 
-      vscode.window.showInformationMessage(`Launched installation for ${skill.name}. Check terminal.`);
+      vscode.window.showInformationMessage(`Installation for ${skill.name} completed.`);
 
-      // We can't verify immediately, so we don't refresh automatically here
+      // Refresh views
+      vscode.commands.executeCommand('skillKnife.refresh'); // Sidebar
+      this._loadSkills(); // Market Panel
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to install ${skill.name}: ${error}`);
     }
@@ -428,9 +430,13 @@ export class MarketPanel {
     try {
       const args = ['add', ...getInstallArgs(skill), ...getAgentArgs(PersistenceService.getPreferredAgents()), '-y'];
 
-      runSkillsCliInteractive(args);
+      await runSkillsCliInteractive(args);
 
-      vscode.window.showInformationMessage(`Launched update for ${skill.name}. Check terminal.`);
+      vscode.window.showInformationMessage(`Update for ${skill.name} completed.`);
+
+      // Refresh views
+      vscode.commands.executeCommand('skillKnife.refresh'); // Sidebar
+      this._loadSkills(); // Market Panel
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to update ${skill.name}: ${error}`);
     }
