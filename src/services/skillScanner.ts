@@ -101,7 +101,7 @@ function scanDirectory(
   try {
     const entries = fs.readdirSync(expanded, { withFileTypes: true });
     for (const entry of entries) {
-      if (entry.isDirectory() && !entry.name.startsWith('.')) {
+      if ((entry.isDirectory() || entry.isSymbolicLink()) && !entry.name.startsWith('.')) {
         const skillPath = path.join(expanded, entry.name);
         // Check if it's a valid skill (has SKILL.md)
         if (fs.existsSync(path.join(skillPath, 'SKILL.md'))) {
