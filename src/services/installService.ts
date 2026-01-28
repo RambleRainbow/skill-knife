@@ -55,6 +55,7 @@ export function deleteSkillInstallation(installation: SkillInstallation): void {
     // We do NOT check fs.existsSync because it returns false for broken symlinks,
     // preventing us from cleaning them up if the source was deleted first.
     fs.rmSync(installation.path, { recursive: true, force: true });
+    console.log(`Deleted skill at ${installation.path}`);
   } catch (e) {
     console.error(`Failed to delete ${installation.path}:`, e);
   }
