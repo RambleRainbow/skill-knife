@@ -55,12 +55,15 @@ export function runSkillsCli(args: string[]): Thenable<void> {
                     reject(new Error('User cancelled operation'));
                 });
 
+                // Helper to strip ANSI codes
+                const stripAnsi = (str: string) => str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+
                 child.stdout.on('data', (data) => {
-                    outputChannel?.append(data.toString());
+                    outputChannel?.append(stripAnsi(data.toString()));
                 });
 
                 child.stderr.on('data', (data) => {
-                    outputChannel?.append(data.toString());
+                    outputChannel?.append(stripAnsi(data.toString()));
                 });
 
                 child.on('close', (code) => {
