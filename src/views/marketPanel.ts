@@ -961,13 +961,6 @@ export class MarketPanel {
         <select id="marketSelect" onchange="selectMarket(this.value)">
           ${marketOptions}
         </select>
-        // TODO: modify markets
-        // <button class="icon-btn" title="Add Custom Market" onclick="addMarket()">
-        //   <span class="codicon codicon-add">+</span>
-        // </button>
-        // <button class="icon-btn delete-btn" title="Delete Market" style="${deleteBtnStyle}" onclick="deleteMarket()">
-        //   <span class="codicon codicon-trash">🗑️</span>
-        // </button>
       </div>
     </div>
 
@@ -976,9 +969,6 @@ export class MarketPanel {
       <input type="text" class="search-box" placeholder="Search skills..." value="${this._escapeHtml(this._searchText)}" oninput="search(this.value)">
       
       <div class="tools-group">
-        // TODO: install/uninstall all
-        // <button onclick="installAll()" title="Install all visible skills">Install All</button>
-        // <button onclick="uninstallAll()" title="Uninstall all visible skills">Uninstall All</button>
         <button class="icon-btn" onclick="refresh()" title="Refresh Market">
           <span class="codicon codicon-refresh">↻</span>
         </button>
