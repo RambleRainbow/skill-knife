@@ -567,8 +567,7 @@ export class MarketPanel {
       })
       .join('');
 
-    const isCustomMarket = !DEFAULT_MARKETS.some(m => m.name === this._currentMarket?.name);
-    const deleteBtnStyle = isCustomMarket ? '' : 'display:none;';
+
 
     let skillsHtml: string;
     if (this._loading) {
