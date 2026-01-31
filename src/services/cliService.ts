@@ -178,6 +178,11 @@ export function runSkillsCliCapture(args: string[], cwd?: string): Promise<strin
 
         const child = cp.spawn(cmd, cmdArgs, { cwd: effectiveCwd, shell: true });
 
+        // Log execution
+        if (outputChannel) {
+            outputChannel.appendLine(`> Executing (capture): ${cmd} ${cmdArgs.join(' ')}`);
+        }
+
         let stdout = '';
         let stderr = '';
 

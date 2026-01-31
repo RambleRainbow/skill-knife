@@ -179,7 +179,12 @@ function parseSkillsListOutput(output: string, scope: SkillScope): Skill[] {
     if (line.trim().startsWith('Agents:')) continue;
     if (line.includes('No project skills found') || line.includes('No global skills found')) continue;
 
-    // Naive parsing: Assume first word is name, rest is path if present
+    // Ignore npm/yarn noise
+    if (line.startsWith('npm') || line.startsWith('yarn')) continue;
+    if (line.includes('ERR!') || line.includes('warning') || line.includes('notice')) continue;
+
+    // Ignore CLI help suggestions
+    if (line.trim().startsWith('Try listing global skills')) continue;
     // This line: "agent-browser ~/.agents/skills/agent-browser"
     const parts = line.trim().split(/\s+/);
     if (parts.length >= 1) {

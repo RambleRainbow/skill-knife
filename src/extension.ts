@@ -40,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
   const showMarketsCmd = vscode.commands.registerCommand(
     'skillKnife.showMarkets',
     () => {
-      MarketPanel.show();
+      MarketPanel.show(context.extensionUri);
     }
   );
 

@@ -17,6 +17,7 @@ const SKILL_SH_MARKET: Market = {
 export class MarketPanel {
   public static currentPanel: MarketPanel | undefined;
   private readonly _panel: vscode.WebviewPanel;
+  private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
   private _markets: Market[] = [];
   private _currentMarket: Market | undefined;
@@ -33,8 +34,9 @@ export class MarketPanel {
     this._updateContent();
   }
 
-  private constructor(panel: vscode.WebviewPanel) {
+  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
     this._panel = panel;
+    this._extensionUri = extensionUri;
     //TODO: add custom markets
     // this._markets = [SKILL_SH_MARKET, ...getAllMarkets()];
     this._markets = [SKILL_SH_MARKET];
@@ -52,7 +54,7 @@ export class MarketPanel {
     this._loadSkills();
   }
 
-  public static show() {
+  public static show(extensionUri: vscode.Uri) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
@@ -71,7 +73,7 @@ export class MarketPanel {
       }
     );
 
-    MarketPanel.currentPanel = new MarketPanel(panel);
+    MarketPanel.currentPanel = new MarketPanel(panel, extensionUri);
   }
 
   private async _loadSkills() {
@@ -701,7 +703,7 @@ export class MarketPanel {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Skill Market</title>
-  <link href="${this._panel.webview.asWebviewUri(vscode.Uri.joinPath(vscode.extensions.getExtension('RambleRainbow.skill-knife')!.extensionUri, 'media', 'codicon.css'))}" rel="stylesheet" />
+  <link href="${this._panel.webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'codicon.css'))}" rel="stylesheet" />
   <style>
     :root {
       --container-paddding: 20px;
