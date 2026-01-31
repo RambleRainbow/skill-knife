@@ -163,3 +163,45 @@ export function getAgentArgs(preferredAgents: string[]): string[] {
 
     return validAgents.flatMap(id => ['--agent', id]);
 }
+
+/**
+ * Run skills CLI command and capture output (no UI)
+ */
+export function runSkillsCliCapture(args: string[], cwd?: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const cmd = 'npx';
+        const cmdArgs = ['skills', ...args];
+
+        // Use provided CWD or default to first workspace folder / home
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        const effectiveCwd = cwd || (workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0].uri.fsPath : os.homedir());
+
+        const child = cp.spawn(cmd, cmdArgs, { cwd: effectiveCwd, shell: true });
+
+        let stdout = '';
+        let stderr = '';
+
+        child.stdout.on('data', (data) => {
+            stdout += data.toString();
+        });
+
+        child.stderr.on('data', (data) => {
+            stderr += data.toString();
+        });
+
+        child.on('close', (code) => {
+            if (code === 0) {
+                // Strip ANSI codes from output
+                // eslint-disable-next-line no-control-regex
+                const stripAnsi = (str: string) => str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+                resolve(stripAnsi(stdout));
+            } else {
+                reject(new Error(`Command failed with exit code ${code}: ${stderr}`));
+            }
+        });
+
+        child.on('error', (err) => {
+            reject(err);
+        });
+    });
+}

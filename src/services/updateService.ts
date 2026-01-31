@@ -1,10 +1,11 @@
 import * as path from 'path';
 import * as fs from 'fs';
+
 import { Skill } from '../types';
 import { MarketSkill, fetchMarketSkills, getAllMarkets } from './marketService';
-import { scanSkills } from './skillScanner';
-import { installSkill, getAvailableReaders } from './installService';
-import { SkillScope } from '../types';
+import { scanSkillsAsync } from './skillScanner';
+import { runSkillsCliInteractive, getInstallArgs, getAgentArgs } from './cliService';
+import { PersistenceService } from './persistenceService';
 
 export interface SkillUpdateInfo {
   skill: Skill;
@@ -22,6 +23,8 @@ function getInstalledCommit(skill: Skill): string | undefined {
     return undefined;
   }
 
+  // With CLI, path points to the skill directory.
+  // We assume .openskills.json might still exist there if the skill follows the standard.
   const metaPath = path.join(skill.installations[0].path, '.openskills.json');
   if (!fs.existsSync(metaPath)) {
     return undefined;
@@ -41,7 +44,7 @@ function getInstalledCommit(skill: Skill): string | undefined {
  */
 export async function checkForUpdates(): Promise<SkillUpdateInfo[]> {
   const updates: SkillUpdateInfo[] = [];
-  const installedSkills = scanSkills();
+  const installedSkills = await scanSkillsAsync();
   const markets = getAllMarkets();
 
   // Fetch all market skills
@@ -114,35 +117,23 @@ export async function updateAllSkills(
   const updates = await checkForUpdates();
   const updatable = updates.filter((u) => u.hasUpdate);
   const updatedNames: string[] = [];
-  const readers = getAvailableReaders();
 
   for (const info of updatable) {
     if (progressCallback) {
       progressCallback(`Updating ${info.skill.name}...`);
     }
 
-    // Group installations by scope
-    const scopeMap = new Map<SkillScope, string[]>();
-
-    for (const install of info.skill.installations) {
-      if (!scopeMap.has(install.scope)) {
-        scopeMap.set(install.scope, []);
-      }
-      scopeMap.get(install.scope)!.push(install.readerId);
-    }
-
-    // Perform updates for each scope
-    for (const [scope, readerIds] of scopeMap.entries()) {
-      const targetReaders = readers.filter((r) => readerIds.includes(r.id));
-      if (targetReaders.length > 0) {
-        await installSkill({
-          skill: info.marketSkill,
-          scope,
-          readers: targetReaders,
-        });
+    try {
+      // Use CLI to update (essentially 'add' again)
+      const args = ['add', ...getInstallArgs(info.marketSkill), ...getAgentArgs(PersistenceService.getPreferredAgents()), '-y'];
+      await runSkillsCliInteractive(args);
+      updatedNames.push(info.skill.name);
+    } catch (error) {
+      console.error(`Failed to update ${info.skill.name}:`, error);
+      if (progressCallback) {
+        progressCallback(`Failed to update ${info.skill.name}: ${error}`);
       }
     }
-    updatedNames.push(info.skill.name);
   }
 
   return updatedNames;

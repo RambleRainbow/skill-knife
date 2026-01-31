@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { Skill } from '../types';
-import { scanSkills } from '../services/skillScanner';
+import { scanSkillsAsync } from '../services/skillScanner';
+import { runSkillsCliInteractive, getAgentArgs } from '../services/cliService';
+import { PersistenceService } from '../services/persistenceService';
 
 /**
  * Tree item representing a skill in the sidebar
@@ -91,8 +93,8 @@ export class SkillKnifeTreeDataProvider
     return this.groupingMode;
   }
 
-  refresh(): void {
-    this.skills = scanSkills();
+  async refresh(): Promise<void> {
+    this.skills = await scanSkillsAsync();
     this._onDidChangeTreeData.fire(undefined);
   }
 
@@ -143,25 +145,47 @@ export class SkillKnifeTreeDataProvider
 
     if (confirm !== 'Delete All') return;
 
-    const freshSkills = scanSkills();
+    // Refresh fresh skills before deletion ops
+    const freshSkills = await scanSkillsAsync();
     let deleteCount = 0;
+    const errors: string[] = [];
 
-    for (const skill of freshSkills) {
-      // Find installations matching this group
-      const targetInstalls = skill.installations.filter(i => i.scope === item.scope);
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: `Deleting all ${item.scope} skills...`,
+      cancellable: false
+    }, async (progress) => {
 
-      if (targetInstalls.length > 0) {
-        // Delete these specific installations
-        for (const install of targetInstalls) {
-          // Import deleteSkillInstallation
-          const { deleteSkillInstallation } = require('../services/installService');
-          deleteSkillInstallation(install);
+      // Filter skills that have this scope
+      const targets = freshSkills.filter(s => s.installations.some(i => i.scope === item.scope));
+      const total = targets.length;
+
+      for (const skill of targets) {
+        progress.report({ message: `Removing ${skill.name} (${deleteCount + 1}/${total})...` });
+        try {
+          // Determine args for removal
+          const scopeFlag = item.scope === 'global' ? '-g' : '';
+          const args = ['remove', skill.name];
+          if (scopeFlag) args.push(scopeFlag);
+
+          args.push(...getAgentArgs(PersistenceService.getPreferredAgents()));
+          args.push('-y');
+
+          await runSkillsCliInteractive(args);
           deleteCount++;
+        } catch (err) {
+          console.error(`Failed to remove ${skill.name}`, err);
+          errors.push(skill.name);
         }
       }
+    });
+
+    if (errors.length > 0) {
+      vscode.window.showErrorMessage(`Deleted ${deleteCount} skills. Failed: ${errors.join(', ')}`);
+    } else {
+      vscode.window.showInformationMessage(`Successfully deleted ${deleteCount} skill installations.`);
     }
 
-    vscode.window.showInformationMessage(`Deleted ${deleteCount} skill installations.`);
     this.refresh();
   }
 

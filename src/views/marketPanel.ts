@@ -1,12 +1,11 @@
 import * as vscode from 'vscode';
-import { Market } from '../types';
+import { Market, Skill } from '../types';
 import { MarketSkill, fetchMarketSkills, getAllMarkets } from '../services/marketService';
-import { scanSkills } from '../services/skillScanner';
 import { hasUpdateAvailable } from '../services/updateService';
-import { deleteSkill } from '../services/installService';
 import { runSkillsCliInteractive, getInstallArgs, getAgentArgs } from '../services/cliService';
 import { PersistenceService } from '../services/persistenceService';
 import { DEFAULT_MARKETS } from '../config/defaults';
+
 import { SkillShService } from '../services/skillShService';
 import { getReaders } from '../config/readers';
 
@@ -23,8 +22,16 @@ export class MarketPanel {
   private _currentMarket: Market | undefined;
   private _skills: MarketSkill[] = [];
   private _globalCache: MarketSkill[] = [];
+  private _installedSkills: Skill[] = []; // Cache for async loaded skills
   private _loading: boolean = false;
   private _searchText: string = '';
+
+  private async _refreshInstalledSkills() {
+    // Non-blocking refresh
+    const { scanSkillsAsync } = require('../services/skillScanner');
+    this._installedSkills = await scanSkillsAsync();
+    this._updateContent();
+  }
 
   private constructor(panel: vscode.WebviewPanel) {
     this._panel = panel;
@@ -41,6 +48,7 @@ export class MarketPanel {
     );
 
     this._updateContent();
+    this._refreshInstalledSkills(); // Trigger async load
     this._loadSkills();
   }
 
@@ -110,7 +118,7 @@ export class MarketPanel {
     this._updateContent();
   }
 
-  private async _handleMessage(message: { command: string; marketName?: string; skillName?: string; searchText?: string; agents?: string[] }) {
+  private async _handleMessage(message: { command: string; marketName?: string; skillName?: string; searchText?: string; agents?: string[]; scope?: string }) {
     switch (message.command) {
       case 'selectMarket':
         const market = this._markets.find((m) => m.name === message.marketName);
@@ -123,18 +131,21 @@ export class MarketPanel {
       case 'install':
         if (message.skillName) {
           await this._showInstallDialog(message.skillName);
+          this._refreshInstalledSkills();
         }
         break;
 
       case 'update':
         if (message.skillName) {
           await this._showUpdateDialog(message.skillName);
+          this._refreshInstalledSkills();
         }
         break;
 
       case 'uninstall':
         if (message.skillName) {
-          await this._showUninstallDialog(message.skillName);
+          await this._showUninstallDialog(message.skillName, message.scope);
+          this._refreshInstalledSkills();
         }
         break;
 
@@ -150,14 +161,17 @@ export class MarketPanel {
 
       case 'refresh':
         await this._loadSkills();
+        this._refreshInstalledSkills();
         break;
 
       case 'installAll':
         await this._installAllVisible();
+        this._refreshInstalledSkills();
         break;
 
       case 'uninstallAll':
         await this._uninstallAllVisible();
+        this._refreshInstalledSkills();
         break;
 
       case 'addMarket':
@@ -260,8 +274,7 @@ export class MarketPanel {
 
   private async _installAllVisible() {
     // 1. Identify skills to install (visible & not installed)
-    const installedSkills = scanSkills();
-    const installedNames = new Set(installedSkills.map((s) => s.name));
+    const installedNames = new Set(this._installedSkills.map((s) => s.name));
 
     let visibleSkills = this._skills;
     if (this._searchText) {
@@ -304,9 +317,9 @@ export class MarketPanel {
         for (const skill of skillsToInstall) {
           progress.report({ message: `Installing ${skill.name} (${++count}/${total})...` });
           try {
-            // Interactive install to project
-            // This will open multiple terminals if done in loop, but intended for "transform"
-            runSkillsCliInteractive(['add', ...getInstallArgs(skill), ...getAgentArgs(PersistenceService.getPreferredAgents()), '-y']);
+            // Interactive install
+            const args = ['add', ...getInstallArgs(skill), ...getAgentArgs(PersistenceService.getPreferredAgents()), '-y'];
+            await runSkillsCliInteractive(args);
           } catch (error) {
             console.error(`Failed to install ${skill.name}:`, error);
             errors.push(`${skill.name}: ${error}`);
@@ -325,13 +338,12 @@ export class MarketPanel {
 
     // Refresh UI
     vscode.commands.executeCommand('skillKnife.refresh');
-    this._updateContent();
+    this._refreshInstalledSkills();
   }
 
   private async _uninstallAllVisible() {
     // 1. Identify skills to uninstall (visible & installed)
-    const installedSkills = scanSkills();
-    const installedNames = new Set(installedSkills.map((s) => s.name));
+    const installedNames = new Set(this._installedSkills.map((s) => s.name));
 
     let visibleSkills = this._skills;
     if (this._searchText) {
@@ -345,7 +357,7 @@ export class MarketPanel {
     const skillsToUninstall = visibleSkills.filter((s) => installedNames.has(s.name));
 
     // Map visible market skills to actual installed Skill objects
-    const targets = installedSkills.filter(s => skillsToUninstall.some(m => m.name === s.name));
+    const targets = this._installedSkills.filter(s => skillsToUninstall.some(m => m.name === s.name));
 
     if (targets.length === 0) {
       vscode.window.showInformationMessage('No installed skills found in current view.');
@@ -377,7 +389,8 @@ export class MarketPanel {
         for (const skill of targets) {
           progress.report({ message: `Uninstalling ${skill.name} (${++count}/${total})...` });
           try {
-            deleteSkill(skill);
+            const args = ['remove', skill.name, ...getAgentArgs(PersistenceService.getPreferredAgents()), '-y'];
+            await runSkillsCliInteractive(args);
           } catch (error) {
             console.error(`Failed to uninstall ${skill.name}:`, error);
             errors.push(`${skill.name}: ${error}`);
@@ -396,7 +409,7 @@ export class MarketPanel {
 
     // Refresh UI
     vscode.commands.executeCommand('skillKnife.refresh');
-    this._updateContent();
+    this._refreshInstalledSkills();
   }
 
   private async _showInstallDialog(skillName: string) {
@@ -444,15 +457,29 @@ export class MarketPanel {
     }
   }
 
-  private async _showUninstallDialog(skillName: string) {
+  private async _showUninstallDialog(skillName: string, scope?: string) {
     try {
       // Find installed skill to delete
-      const installedSkills = scanSkills();
-      const skill = installedSkills.find(s => s.name === skillName);
+      const skill = this._installedSkills.find(s => s.name === skillName);
 
       if (!skill) {
         vscode.window.showErrorMessage(`Skill ${skillName} is not recognized as installed.`);
         return;
+      }
+
+      // Logic to determine scope if not provided
+      let targetScope = scope;
+      if (!targetScope) {
+        const scopes = new Set(skill.installations.map(i => i.scope));
+        if (scopes.size > 1) {
+          // Ask user
+          targetScope = await vscode.window.showQuickPick(['project', 'global'], {
+            placeHolder: `Select scope to uninstall ${skillName} from`
+          });
+          if (!targetScope) return;
+        } else {
+          targetScope = skill.installations[0].scope;
+        }
       }
 
       await vscode.window.withProgress(
@@ -462,14 +489,20 @@ export class MarketPanel {
           cancellable: false,
         },
         async () => {
-          // Use internal delete service since 'remove' CLI command doesn't exist
-          deleteSkill(skill);
+          const scopeFlag = targetScope === 'global' ? '-g' : '';
+          const args = ['remove', skillName];
+          if (scopeFlag) args.push(scopeFlag);
+
+          args.push(...getAgentArgs(PersistenceService.getPreferredAgents()));
+          args.push('-y');
+
+          await runSkillsCliInteractive(args);
         }
       );
 
       vscode.window.showInformationMessage(`Successfully uninstalled ${skillName}`);
       vscode.commands.executeCommand('skillKnife.refresh');
-      this._updateContent();
+      this._refreshInstalledSkills();
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to uninstall ${skillName}: ${error}`);
     }
@@ -553,107 +586,113 @@ export class MarketPanel {
   }
 
   private _getHtmlContent(): string {
-    const installedSkills = scanSkills();
-    const installedNames = new Set(installedSkills.map((s) => s.name));
+    const installedSkills = this._installedSkills;
     const preferred = PersistenceService.getPreferredAgents();
     const readers = getReaders().map(r => ({ id: r.id, name: r.name }));
+
 
     const marketOptions = this._markets
       .map((m) => {
         const isCustom = !DEFAULT_MARKETS.some(dm => dm.name === m.name) && m.name !== SKILL_SH_MARKET.name;
         const displayName = isCustom ? `${m.name} *` : m.name;
-        const selected = m.name === this._currentMarket?.name ? 'selected' : '';
-        return `<option value="${this._escapeHtml(m.name)}" ${selected}>${this._escapeHtml(displayName)}</option>`;
+        return `<option value="${this._escapeHtml(m.name)}" ${this._currentMarket?.name === m.name ? 'selected' : ''
+          }>${this._escapeHtml(displayName)}</option>`;
       })
       .join('');
 
-
-
-    let skillsHtml: string;
+    let skillsHtml = '';
     if (this._loading) {
       skillsHtml = '<div class="loading">Loading skills...</div>';
     } else if (this._skills.length === 0) {
-      skillsHtml = '<div class="empty">No skills found in this market</div>';
+      if (this._searchText) {
+        skillsHtml = '<div class="empty-state">No skills found matching your search.</div>';
+      } else {
+        skillsHtml = '<div class="empty-state">No skills available in this market.</div>';
+      }
     } else {
-      // Allow client-side filtering: render ALL skills
-      // For Global Search, 'this._skills' is already the result of the search query
-      // For Standard Markets, we filter again in JS but we should pass all
+      let filteredSkills = this._skills;
 
+      // Client-side filtering for non-global search markets
+      if (this._searchText && this._currentMarket?.name !== SKILL_SH_MARKET.name) {
+        filteredSkills = this._skills.filter(
+          (s) =>
+            s.name.toLowerCase().includes(this._searchText) ||
+            (s.description && s.description.toLowerCase().includes(this._searchText))
+        );
+      }
 
-      skillsHtml = this._skills
-        .map((skill) => {
-          const isInstalled = installedNames.has(skill.name);
-          const hasUpdate = isInstalled && hasUpdateAvailable(skill.name, installedSkills, this._skills);
+      skillsHtml = filteredSkills.map((skill) => {
+        const installedSkill = installedSkills.find(s => s.name === skill.name);
+        const isInstalled = !!installedSkill;
+        const hasUpdate = isInstalled && hasUpdateAvailable(skill.name, installedSkills, this._skills);
 
-          let buttonHtml: string;
-          if (isInstalled) {
-            if (hasUpdate) {
-              buttonHtml = `<button class="action-btn update-btn" onclick="update('${this._escapeHtml(skill.name)}')">Update</button>`;
-            } else {
-              buttonHtml = `<button class="action-btn uninstall-btn" onclick="uninstall('${this._escapeHtml(skill.name)}')">Uninstall</button>`;
-            }
+        let buttonHtml: string;
+        let badgesHtml = '';
+
+        if (isInstalled && installedSkill) {
+          // Scope Badges
+          const scopes = new Set(installedSkill.installations.map(i => i.scope));
+          if (scopes.has('project')) badgesHtml += `<span class="scope-badge project" title="Project Installed">P</span>`;
+          if (scopes.has('global')) badgesHtml += `<span class="scope-badge global" title="Global Installed">G</span>`;
+
+          if (hasUpdate) {
+            buttonHtml = `<button class="action-btn update-btn" onclick="update('${this._escapeHtml(skill.name)}')">Update</button>`;
           } else {
-            buttonHtml = `<button class="action-btn install-btn" onclick="install('${this._escapeHtml(skill.name)}')">Install</button>`;
+            buttonHtml = `<button class="action-btn uninstall-btn" onclick="uninstall('${this._escapeHtml(skill.name)}')">Uninstall</button>`;
           }
+        } else {
+          buttonHtml = `<button class="action-btn install-btn" onclick="install('${this._escapeHtml(skill.name)}')">Install</button>`;
+        }
 
-          const searchContent = this._escapeHtml((skill.name + ' ' + (skill.description || '')).toLowerCase());
+        let metaHtml = '';
+        if (this._currentMarket?.name === SKILL_SH_MARKET.name) {
+          // Parse description which contains "Installs:
+          const installCount = (skill.description || '').match(/Installs: (\d+)/)?.[1] || '0';
+          metaHtml = `
+               <div class="skill-meta-stack">
+                 <div class="meta-row">
+                    <span class="codicon codicon-cloud-download"></span>
+                    <span>${installCount}</span>
+                 </div>
+                 <div class="meta-row">
+                    <a href="https://github.com/${skill.repoPath}" class="source-link" title="View Source">
+                        <span class="codicon codicon-github-inverted"></span>
+                        GitHub
+                    </a>
+                 </div>
+               </div>
+             `;
+        }
 
-          // Enhanced Card Design with Details Section
-          const repoUrl = skill.repoPath.startsWith('http') ? skill.repoPath : `https://github.com/${skill.repoPath}`;
-          // For non-global markets, description is actual description. For global, it's the install count if we use our hack.
-          const installCount = skill.description && skill.description.startsWith('Installs:') ? skill.description : '';
+        const overview = (skill.description || '').replace(/Installs: \d+/, '').trim() || 'No description available.';
 
-          let metaHtml = '';
-          const isGlobal = this._currentMarket?.name === SKILL_SH_MARKET.name;
-
-          if (isGlobal) {
-            metaHtml = `
-                <div class="meta-stack">
-                   <a href="${repoUrl}" class="meta-source" onclick="event.stopPropagation()">${this._escapeHtml(skill.repoPath)}</a>
-                   <span class="meta-installs">${this._escapeHtml(installCount)}</span>
-                </div>
-              `;
-          } else {
-            metaHtml = `<div class="meta-desc">${this._escapeHtml(skill.description || '')}</div>`;
-          }
-
-          return `
-          <div class="skill-card" id="card-${this._escapeHtml(skill.name)}" data-search-content="${searchContent}" onclick="toggleDetails('${this._escapeHtml(skill.name)}', event)">
+        return `
+          <div class="skill-card" onclick="toggleDetails(this)">
             <div class="skill-header">
               <div class="header-left">
-                 <span class="expand-indicator">▶</span>
-                 <span class="skill-name" title="${this._escapeHtml(skill.name)}">${this._escapeHtml(skill.name)}</span>
+                <div class="skill-icon">
+                  <span class="codicon codicon-tools"></span>
+                </div>
+                <span class="skill-name" title="${this._escapeHtml(skill.name)}">${this._escapeHtml(skill.name)}</span>
               </div>
               <div class="header-right">
-                 ${metaHtml}
-                 <div onclick="event.stopPropagation()">${buttonHtml}</div>
+                <div class="scope-badges">${badgesHtml}</div>
+                ${metaHtml}
+                <div onclick="event.stopPropagation()">${buttonHtml}</div>
               </div>
             </div>
-            
-            <div class="skill-details hidden" id="details-${this._escapeHtml(skill.name)}">
-               <div class="detail-loading" ${isGlobal ? '' : 'style="display:none"'}>Loading details...</div>
-               
-               <div class="detail-content ${isGlobal ? 'hidden' : ''}">
-                  <div class="section-title">Overview</div>
-                  <div class="full-description">${isGlobal ? '' : this._escapeHtml(skill.description || '')}</div>
-                  
-                  <div class="install-section ${isGlobal ? '' : 'hidden'}">
-                      <div class="section-title">Install Command</div>
-                      <div class="install-block">
-                        <code class="cmd-text"></code>
-                        <button class="copy-btn" onclick="copyCmd('${this._escapeHtml(skill.name)}', event)">Copy</button>
-                      </div>
-                  </div>
-
-                  <div class="links">
-                    <a href="${repoUrl}" target="_blank" onclick="event.stopPropagation()">View Repository</a>
-                  </div>
-               </div>
+            <div class="skill-details" style="display: none;">
+                <div class="detail-row">
+                    <strong>Overview:</strong>
+                    <p>${this._escapeHtml(overview)}</p>
+                </div>
+                ${isInstalled ? '' : `<div class="detail-row install-cmd">
+                    <code>npx skills add ${this._escapeHtml(skill.repoPath)}</code>
+                </div>`}
             </div>
           </div>
         `;
-        })
-        .join('');
+      }).join('');
     }
 
     return `<!DOCTYPE html>
@@ -661,196 +700,215 @@ export class MarketPanel {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Skill Markets</title>
+  <title>Skill Market</title>
+  <link href="${this._panel.webview.asWebviewUri(vscode.Uri.joinPath(vscode.extensions.getExtension('RambleRainbow.skill-knife')!.extensionUri, 'media', 'codicon.css'))}" rel="stylesheet" />
   <style>
+    :root {
+      --container-paddding: 20px;
+      --input-padding-vertical: 6px;
+      --input-padding-horizontal: 4px;
+      --input-margin-vertical: 4px;
+      --input-margin-horizontal: 0;
+    }
+
     body {
       font-family: var(--vscode-font-family);
-      padding: 20px;
-      color: var(--vscode-foreground);
+      padding: 0;
+      margin: 0;
+      color: var(--vscode-editor-foreground);
       background-color: var(--vscode-editor-background);
     }
-    .header {
-      /* Removed old flex styles */
-      margin-bottom: 20px;
-      border-bottom: 1px solid var(--vscode-panel-border);
-      padding-bottom: 15px;
-    }
-    .market-bar {
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      background: var(--vscode-editor-background);
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--vscode-widget-border);
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-    }
-    .action-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
       gap: 10px;
-    }
-    .market-controls {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-    h1 {
-      margin: 0;
-      font-size: 1.5em;
-    }
-    select {
-      padding: 5px 10px;
-      background: var(--vscode-dropdown-background);
-      color: var(--vscode-dropdown-foreground);
-      border: 1px solid var(--vscode-dropdown-border);
-      border-radius: 3px;
-      min-width: 200px;
-    }
-    button {
-      padding: 5px 10px;
-      background: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-    button:hover {
-      background: var(--vscode-button-hoverBackground);
-    }
-    .icon-btn {
-      padding: 5px;
-      width: 28px;
-      height: 28px;
-      display: flex;
-      justify-content: center;
+      z-index: 10;
       align-items: center;
     }
-    .icon-btn.delete-btn {
-      background: var(--vscode-button-secondaryBackground);
-    }
-    .icon-btn.delete-btn:hover {
-      background: var(--vscode-errorForeground);
-      color: white;
-    }
-    
+
     .search-box {
-      flex-grow: 1;
-      padding: 6px 10px;
+      flex: 1;
+      padding: 6px;
       background: var(--vscode-input-background);
       color: var(--vscode-input-foreground);
       border: 1px solid var(--vscode-input-border);
-      border-radius: 3px;
+      border-radius: 2px;
+    }
+
+    .market-select {
+        background: var(--vscode-dropdown-background);
+        color: var(--vscode-dropdown-foreground);
+        border: 1px solid var(--vscode-dropdown-border);
+        padding: 6px;
+        border-radius: 2px;
+        max-width: 200px;
+    }
+
+    .icon-btn {
+        background: none;
+        border: none;
+        color: var(--vscode-icon-foreground);
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .icon-btn:hover {
+        background: var(--vscode-toolbar-hoverBackground);
+        border-radius: 2px;
+    }
+
+    .container {
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 12px;
     }
 
     .skill-card {
-      background: var(--vscode-editor-inactiveSelectionBackground);
-      border: 1px solid var(--vscode-panel-border);
-      border-radius: 5px;
-      padding: 15px;
-      margin-bottom: 10px;
-    }
-    .skill-card.hidden {
-      display: none;
-    }
-    .skill-header {
+      background: var(--vscode-editor-background);
+      border: 1px solid var(--vscode-widget-border);
+      padding: 12px;
+      border-radius: 4px;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .skill-name {
-      font-weight: bold;
-      font-size: 1.1em;
-    }
-    .skill-description {
-      color: var(--vscode-descriptionForeground);
-      font-size: 0.9em;
-    }
-    .action-btn {
-      padding: 4px 12px;
-      font-size: 12px;
-      line-height: 18px;
-      min-width: 80px;
-      text-align: center;
-      border: 1px solid transparent;
-    }
-    .install-btn {
-      /* Inherits primary button styles */
-    }
-    .update-btn, .uninstall-btn {
-      background: var(--vscode-button-secondaryBackground);
-      color: var(--vscode-button-secondaryForeground);
-    }
-    .update-btn:hover, .uninstall-btn:hover {
-      background: var(--vscode-button-secondaryHoverBackground);
-    }
-    .loading, .empty {
-      text-align: center;
-      padding: 40px;
-      color: var(--vscode-descriptionForeground);
-    }
-
-    .tools-group {
-      display: flex;
-      gap: 8px;
+      flex-direction: column;
+      cursor: pointer;
+      transition: border-color 0.2s;
     }
     
-    /* New Styles */
-    .skill-card {
-        cursor: pointer;
-        transition: border-color 0.2s;
-    }
     .skill-card:hover {
         border-color: var(--vscode-focusBorder);
     }
 
-    .header-left { display: flex; align-items: center; gap: 5px; overflow: hidden; }
-    .header-right { 
-        display: flex; 
-        align-items: center; 
-        gap: 10px;
-        flex-shrink: 0; 
+    .skill-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
     }
 
-    .expand-indicator {
-      display: inline-block;
-      margin-right: 6px;
-      font-size: 0.8em;
-      transition: transform 0.2s ease;
-      color: var(--vscode-descriptionForeground);
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
     }
-    .skill-card.expanded .expand-indicator {
-      transform: rotate(90deg);
+
+    .skill-icon {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px; 
+    }
+
+    .skill-name {
+      font-weight: bold;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .scope-badges {
+        display: flex;
+        gap: 4px;
+    }
+
+    .scope-badge {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        font-size: 10px;
+        font-weight: bold;
+        border-radius: 50%;
+        cursor: help;
+        color: #fff;
     }
     
-    .meta-stack {
+    .scope-badge.project {
+        background-color: #3b82f6; /* Blue for Project */
+    }
+    
+    .scope-badge.global {
+        background-color: #10b981; /* Green for Global */
+    }
+
+    .skill-meta-stack {
         display: flex;
         flex-direction: column;
         align-items: flex-end;
-        font-size: 0.8em;
+        font-size: 11px;
+        color: var(--vscode-descriptionForeground);
         line-height: 1.2;
     }
-    .meta-source {
+
+    .meta-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .source-link {
         color: var(--vscode-textLink-foreground);
         text-decoration: none;
-        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 4px;
     }
-    .meta-source:hover { text-decoration: underline; }
-    .meta-installs {
-        color: var(--vscode-descriptionForeground);
-        font-size: 0.9em;
+    .source-link:hover {
+        text-decoration: underline;
     }
-    .meta-desc {
-        color: var(--vscode-descriptionForeground);
-        font-size: 0.9em;
-        max-width: 200px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+
+    .action-btn {
+      padding: 4px 12px;
+      border: none;
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 12px;
+      min-width: 70px;
+    }
+
+    .install-btn {
+      background: var(--vscode-button-background);
+      color: var(--vscode-button-foreground);
+    }
+
+    .install-btn:hover {
+      background: var(--vscode-button-hoverBackground);
+    }
+
+    .update-btn {
+      background: var(--vscode-button-secondaryBackground);
+      color: var(--vscode-button-secondaryForeground);
+    }
+    
+    .uninstall-btn {
+        background: var(--vscode-errorForeground);
+        color: white;
+        opacity: 0.8;
+    }
+    .uninstall-btn:hover {
+        opacity: 1;
     }
 
     .skill-details {
-      margin-top: 5px;
-      padding-top: 10px;
-      border-top: 1px solid var(--vscode-widget-border);
       /* Removed indentation and box style for cleaner look */
       background: transparent;
       border-radius: 0;
