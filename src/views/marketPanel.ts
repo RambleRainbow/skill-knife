@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { Market, Skill } from '../types';
 import { MarketSkill, fetchMarketSkills, getAllMarkets } from '../services/marketService';
-import { hasUpdateAvailable } from '../services/updateService';
+// import { hasUpdateAvailable } from '../services/updateService'; // Removed unused import
 import { runSkillsCliInteractive, getInstallArgs, getAgentArgs } from '../services/cliService';
 import { PersistenceService } from '../services/persistenceService';
 import { DEFAULT_MARKETS } from '../config/defaults';
@@ -31,7 +31,7 @@ export class MarketPanel {
     // Non-blocking refresh
     const { scanSkillsAsync } = require('../services/skillScanner');
     this._installedSkills = await scanSkillsAsync();
-    this._updateContent();
+    this._postStateUpdate();
   }
 
   private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
@@ -82,7 +82,7 @@ export class MarketPanel {
     }
 
     this._loading = true;
-    this._updateContent();
+    this._postStateUpdate();
 
     if (this._currentMarket?.name === SKILL_SH_MARKET.name) {
       if (this._globalCache.length > 0) {
@@ -105,7 +105,7 @@ export class MarketPanel {
       }
 
       this._loading = false;
-      this._updateContent();
+      this._postStateUpdate();
       return;
     }
 
@@ -117,7 +117,7 @@ export class MarketPanel {
     }
 
     this._loading = false;
-    this._updateContent();
+    this._postStateUpdate();
   }
 
   private async _handleMessage(message: { command: string; marketName?: string; skillName?: string; searchText?: string; agents?: string[]; scope?: string }) {
@@ -191,10 +191,25 @@ export class MarketPanel {
           PersistenceService.savePreferredAgents(message.agents);
           vscode.window.showInformationMessage('Installation settings saved');
           // No need to reload skills, but maybe update content to reflect state if needed
-          this._updateContent();
+          this._postStateUpdate();
         }
         break;
     }
+  }
+
+  // Helper to send state update without full reload
+  private _postStateUpdate() {
+    this._panel.webview.postMessage({
+      command: 'updateState',
+      state: {
+        markets: this._markets,
+        skills: this._skills,
+        loading: this._loading,
+        searchText: this._searchText,
+        currentMarket: this._currentMarket, // Update market if changed
+        installedSkills: this._installedSkills
+      }
+    });
   }
 
   private async _handleGlobalSearch(query: string) {
@@ -205,12 +220,12 @@ export class MarketPanel {
       } else {
         this._skills = [];
       }
-      this._updateContent();
+      this._postStateUpdate(); // Use partial update
       return;
     }
 
     this._loading = true;
-    this._updateContent();
+    this._postStateUpdate();
 
     let results: any[] = [];
 
@@ -233,7 +248,7 @@ export class MarketPanel {
     }
 
     this._loading = false;
-    this._updateContent();
+    this._postStateUpdate();
 
     // Trigger background fetch for details
     if (results.length > 0) {
@@ -273,6 +288,9 @@ export class MarketPanel {
       }
     }
   }
+
+  // Helper method to send state updates instead of full reload (Optional optimization for future)
+  // private _postStateUpdate() { ... }
 
   private async _installAllVisible() {
     // 1. Identify skills to install (visible & not installed)
@@ -588,664 +606,46 @@ export class MarketPanel {
   }
 
   private _getHtmlContent(): string {
-    const installedSkills = this._installedSkills;
-    const preferred = PersistenceService.getPreferredAgents();
-    const readers = getReaders().map(r => ({ id: r.id, name: r.name }));
+    // 1. Prepare State Object
+    const state = {
+      markets: this._markets,
+      currentMarket: this._currentMarket,
+      skills: this._skills,
+      installedSkills: this._installedSkills,
+      loading: this._loading,
+      searchText: this._searchText,
+      preferredAgents: PersistenceService.getPreferredAgents(),
+      allAgents: getReaders().map(r => ({ id: r.id, name: r.name })),
+    };
 
+    // 2. Resource URIs
+    const styleUri = this._panel.webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'marketPanel.css'));
+    const scriptUri = this._panel.webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'marketPanel.js'));
+    const codiconUri = this._panel.webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'codicon.css'));
 
-    const marketOptions = this._markets
-      .map((m) => {
-        const isCustom = !DEFAULT_MARKETS.some(dm => dm.name === m.name) && m.name !== SKILL_SH_MARKET.name;
-        const displayName = isCustom ? `${m.name} *` : m.name;
-        return `<option value="${this._escapeHtml(m.name)}" ${this._currentMarket?.name === m.name ? 'selected' : ''
-          }>${this._escapeHtml(displayName)}</option>`;
-      })
-      .join('');
+    // 3. Load HTML Template
+    const fs = require('fs');
+    const path = require('path');
+    const htmlPath = path.join(this._extensionUri.fsPath, 'media', 'marketPanel.html');
+    let html = fs.readFileSync(htmlPath, 'utf8');
 
-    let skillsHtml = '';
-    if (this._loading) {
-      skillsHtml = '<div class="loading">Loading skills...</div>';
-    } else if (this._skills.length === 0) {
-      if (this._searchText) {
-        skillsHtml = '<div class="empty-state">No skills found matching your search.</div>';
-      } else {
-        skillsHtml = '<div class="empty-state">No skills available in this market.</div>';
-      }
-    } else {
-      let filteredSkills = this._skills;
+    // 4. Inject Data & Resources
+    // Note: We use simple string replacement suitable for this constrained environment
+    html = html.replace('<!-- CSS_URIS -->', `
+        <link href="${codiconUri}" rel="stylesheet" />
+        <link href="${styleUri}" rel="stylesheet" />
+    `);
 
-      // Client-side filtering for non-global search markets
-      if (this._searchText && this._currentMarket?.name !== SKILL_SH_MARKET.name) {
-        filteredSkills = this._skills.filter(
-          (s) =>
-            s.name.toLowerCase().includes(this._searchText) ||
-            (s.description && s.description.toLowerCase().includes(this._searchText))
-        );
-      }
+    html = html.replace('<!-- SCRIPT_URIS -->', `<script src="${scriptUri}"></script>`);
 
-      skillsHtml = filteredSkills.map((skill) => {
-        const installedSkill = installedSkills.find(s => s.name === skill.name);
-        const isInstalled = !!installedSkill;
-        const hasUpdate = isInstalled && hasUpdateAvailable(skill.name, installedSkills, this._skills);
+    html = html.replace('/* INITIAL_DATA */', `window.skillKnifeData = ${JSON.stringify(state)};`);
 
-        let buttonHtml: string;
-        let badgesHtml = '';
+    // 5. Security (Content Security Policy) - Optional but good practice
+    // For now, we trust local content. 
 
-        if (isInstalled && installedSkill) {
-          // Scope Badges
-          const scopes = new Set(installedSkill.installations.map(i => i.scope));
-          if (scopes.has('project')) badgesHtml += `<span class="scope-badge project" title="Project Installed">P</span>`;
-          if (scopes.has('global')) badgesHtml += `<span class="scope-badge global" title="Global Installed">G</span>`;
-
-          if (hasUpdate) {
-            buttonHtml = `<button class="action-btn update-btn" onclick="update('${this._escapeHtml(skill.name)}')">Update</button>`;
-          } else {
-            buttonHtml = `<button class="action-btn uninstall-btn" onclick="uninstall('${this._escapeHtml(skill.name)}')">Uninstall</button>`;
-          }
-        } else {
-          buttonHtml = `<button class="action-btn install-btn" onclick="install('${this._escapeHtml(skill.name)}')">Install</button>`;
-        }
-
-        let metaHtml = '';
-        if (this._currentMarket?.name === SKILL_SH_MARKET.name) {
-          // Parse description which contains "Installs:
-          const installCount = (skill.description || '').match(/Installs: (\d+)/)?.[1] || '0';
-          metaHtml = `
-               <div class="skill-meta-stack">
-                 <div class="meta-row">
-                    <span class="codicon codicon-cloud-download"></span>
-                    <span>${installCount}</span>
-                 </div>
-                 <div class="meta-row">
-                    <a href="https://github.com/${skill.repoPath}" class="source-link" title="View Source">
-                        <span class="codicon codicon-github-inverted"></span>
-                        GitHub
-                    </a>
-                 </div>
-               </div>
-             `;
-        }
-
-        const overview = (skill.description || '').replace(/Installs: \d+/, '').trim() || 'No description available.';
-
-        return `
-          <div class="skill-card" onclick="toggleDetails(this)">
-            <div class="skill-header">
-              <div class="header-left">
-                <div class="skill-icon">
-                  <span class="codicon codicon-tools"></span>
-                </div>
-                <span class="skill-name" title="${this._escapeHtml(skill.name)}">${this._escapeHtml(skill.name)}</span>
-              </div>
-              <div class="header-right">
-                <div class="scope-badges">${badgesHtml}</div>
-                ${metaHtml}
-                <div onclick="event.stopPropagation()">${buttonHtml}</div>
-              </div>
-            </div>
-            <div class="skill-details" style="display: none;">
-                <div class="detail-row">
-                    <strong>Overview:</strong>
-                    <p>${this._escapeHtml(overview)}</p>
-                </div>
-                ${isInstalled ? '' : `<div class="detail-row install-cmd">
-                    <code>npx skills add ${this._escapeHtml(skill.repoPath)}</code>
-                </div>`}
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Skill Market</title>
-  <link href="${this._panel.webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'codicon.css'))}" rel="stylesheet" />
-  <style>
-    body {
-      font-family: var(--vscode-font-family);
-      padding: 20px;
-      color: var(--vscode-foreground);
-      background-color: var(--vscode-editor-background);
-    }
-    .header {
-      margin-bottom: 20px;
-      border-bottom: 1px solid var(--vscode-panel-border);
-      padding-bottom: 15px;
-    }
-    .market-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-    }
-    .action-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-    }
-    .market-controls {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-    h1 {
-      margin: 0;
-      font-size: 1.5em;
-    }
-    select {
-      padding: 5px 10px;
-      background: var(--vscode-dropdown-background);
-      color: var(--vscode-dropdown-foreground);
-      border: 1px solid var(--vscode-dropdown-border);
-      border-radius: 3px;
-      min-width: 200px;
-    }
-    button {
-      padding: 5px 10px;
-      background: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-    button:hover {
-      background: var(--vscode-button-hoverBackground);
-    }
-    .icon-btn {
-      padding: 5px;
-      width: 28px;
-      height: 28px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    .icon-btn.delete-btn {
-      background: var(--vscode-button-secondaryBackground);
-    }
-    .icon-btn.delete-btn:hover {
-      background: var(--vscode-errorForeground);
-      color: white;
-    }
-    
-    .search-box {
-      flex-grow: 1;
-      padding: 6px 10px;
-      background: var(--vscode-input-background);
-      color: var(--vscode-input-foreground);
-      border: 1px solid var(--vscode-input-border);
-      border-radius: 3px;
-    }
-
-    .skill-card {
-      background: var(--vscode-editor-inactiveSelectionBackground);
-      border: 1px solid var(--vscode-panel-border);
-      border-radius: 5px;
-      padding: 15px;
-      margin-bottom: 10px;
-      cursor: pointer;
-      transition: border-color 0.2s;
-    }
-    .skill-card:hover {
-        border-color: var(--vscode-focusBorder);
-    }
-    .skill-card.hidden {
-      display: none;
-    }
-    .skill-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .skill-name {
-      font-weight: bold;
-      font-size: 1.1em;
-    }
-    .skill-description {
-      color: var(--vscode-descriptionForeground);
-      font-size: 0.9em;
-    }
-    .action-btn {
-      padding: 4px 12px;
-      font-size: 12px;
-      line-height: 18px;
-      min-width: 80px;
-      text-align: center;
-      border: 1px solid transparent;
-    }
-    .install-btn {
-      /* Inherits primary button styles */
-    }
-    .update-btn, .uninstall-btn {
-      background: var(--vscode-button-secondaryBackground);
-      color: var(--vscode-button-secondaryForeground);
-    }
-    .update-btn:hover, .uninstall-btn:hover {
-      background: var(--vscode-button-secondaryHoverBackground);
-    }
-    .loading, .empty {
-      text-align: center;
-      padding: 40px;
-      color: var(--vscode-descriptionForeground);
-    }
-
-    .tools-group {
-      display: flex;
-      gap: 8px;
-    }
-
-    .header-left { display: flex; align-items: center; gap: 5px; overflow: hidden; }
-    .header-right { 
-        display: flex; 
-        align-items: center; 
-        gap: 10px;
-        flex-shrink: 0; 
-    }
-
-    .expand-indicator {
-      display: inline-block;
-      margin-right: 6px;
-      font-size: 0.8em;
-      transition: transform 0.2s ease;
-      color: var(--vscode-descriptionForeground);
-    }
-    .skill-card.expanded .expand-indicator {
-      transform: rotate(90deg);
-    }
-    
-    .meta-stack {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        font-size: 0.8em;
-        line-height: 1.2;
-    }
-    .meta-source {
-        color: var(--vscode-textLink-foreground);
-        text-decoration: none;
-        font-weight: 500;
-    }
-    .meta-source:hover { text-decoration: underline; }
-    .meta-installs {
-        color: var(--vscode-descriptionForeground);
-        font-size: 0.9em;
-    }
-    .meta-desc {
-        color: var(--vscode-descriptionForeground);
-        font-size: 0.9em;
-        max-width: 200px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .skill-details {
-      margin-top: 5px;
-      padding-top: 10px;
-      border-top: 1px solid var(--vscode-widget-border);
-      /* Removed indentation and box style for cleaner look */
-      background: transparent;
-      border-radius: 0;
-      border: none;
-      border-top: 1px solid var(--vscode-editor-lineHighlightBorder);
-      margin-left: 0;
-    }
-    .skill-details.hidden { display: none; }
-    
-    .section-title {
-      font-weight: bold;
-      font-size: 0.8em;
-      text-transform: uppercase;
-      margin-bottom: 5px;
-      margin-top: 10px;
-      color: var(--vscode-textPreformat-foreground);
-    }
-    .section-title:first-child { margin-top: 0; }
-    
-    .full-description {
-      font-size: 0.9em;
-      line-height: 1.4em;
-      margin-bottom: 10px;
-      white-space: pre-wrap;
-    }
-    
-    .install-block {
-      display: flex;
-      background: var(--vscode-textBlockQuote-background);
-      border: 1px solid var(--vscode-textBlockQuote-border);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-    .cmd-text {
-      flex-grow: 1;
-      padding: 6px;
-      font-family: monospace;
-      font-size: 0.9em;
-      white-space: nowrap;
-      overflow-x: auto;
-    }
-    .copy-btn {
-      border-radius: 0;
-      background: var(--vscode-button-secondaryBackground);
-    }
-    
-    .links {
-      margin-top: 10px;
-      font-size: 0.9em;
-    }
-    .links a { color: var(--vscode-textLink-foreground); text-decoration: none; }
-    .links a:hover { text-decoration: underline; }
-    
-    .detail-loading { font-style: italic; color: var(--vscode-descriptionForeground); }
-    .detail-content.hidden { display: none; }
-    
-    /* Modal Styles */
-    .modal {
-        position: fixed;
-        z-index: 100;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.4);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-    .modal.hidden { display: none; }
-    .modal-content {
-        background-color: var(--vscode-editor-background);
-        border: 1px solid var(--vscode-panel-border);
-        padding: 20px;
-        border-radius: 5px;
-        width: 300px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    .agent-list {
-        max-height: 300px;
-        overflow-y: auto;
-        margin: 15px 0;
-        border: 1px solid var(--vscode-widget-border);
-        padding: 5px;
-    }
-    .agent-item {
-        display: flex;
-        align-items: center;
-        padding: 5px;
-        border-bottom: 1px solid var(--vscode-widget-border);
-    }
-    .agent-item:last-child { border-bottom: none; }
-    .agent-item input { margin-right: 10px; }
-    .modal-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-    }
-
-    /* --- New Feature Support (Merged) --- */
-    .skill-icon {
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 5px;
-    }
-    .scope-badges { display: flex; gap: 4px; margin-right: 8px; }
-    .scope-badge {
-        display: flex; align-items: center; justify-content: center;
-        width: 18px; height: 18px; font-size: 10px; font-weight: bold;
-        border-radius: 50%; color: #fff; cursor: help;
-    }
-    .scope-badge.project { background-color: #3b82f6; }
-    .scope-badge.global { background-color: #10b981; }
-
-    .skill-meta-stack {
-        display: flex; flex-direction: column; align-items: flex-end;
-        font-size: 0.8em; line-height: 1.2;
-    }
-    .meta-row { display: flex; align-items: center; gap: 4px; }
-    .source-link { color: var(--vscode-textLink-foreground); text-decoration: none; }
-    .source-link:hover { text-decoration: underline; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <!-- Row 1: Title and Market Selection -->
-    <div class="market-bar">
-      <h1>Skill Markets</h1>
-      <div class="market-controls">
-        <select id="marketSelect" onchange="selectMarket(this.value)">
-          ${marketOptions}
-        </select>
-      </div>
-    </div>
-
-    <!-- Row 2: Search and Actions -->
-    <div class="action-bar">
-      <input type="text" class="search-box" placeholder="Search skills..." value="${this._escapeHtml(this._searchText)}" oninput="search(this.value)">
-      
-      <div class="tools-group">
-        <button class="icon-btn" onclick="refresh()" title="Refresh Market">
-          <span class="codicon codicon-refresh">↻</span>
-        </button>
-        <button class="icon-btn" onclick="toggleSettings()" title="Installation Settings">
-          <span class="codicon codicon-gear">⚙️</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div class="skills-list">
-    ${skillsHtml}
-  </div>
-
-  <!-- Settings Modal -->
-  <div id="settings-modal" class="modal hidden">
-    <div class="modal-content">
-      <h3 style="margin-top:0">Default Install Targets</h3>
-      <div style="font-size:0.9em; color:var(--vscode-descriptionForeground)">Select which agents to install skills to by default.</div>
-      <div id="agent-list" class="agent-list">
-        <!-- Rendered by JS -->
-      </div>
-      <div class="modal-actions">
-         <button onclick="toggleSettings()">Cancel</button>
-         <button onclick="saveSettings()" style="background:var(--vscode-button-background); color:var(--vscode-button-foreground)">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const vscode = acquireVsCodeApi();
-    const PREFERRED_AGENTS = ${JSON.stringify(preferred)};
-    const ALL_AGENTS = ${JSON.stringify(readers)};
-
-    function selectMarket(name) {
-      vscode.postMessage({ command: 'selectMarket', marketName: name });
-    }
-
-    function install(skillName) {
-      vscode.postMessage({ command: 'install', skillName: skillName });
-    }
-
-    function update(skillName) {
-      vscode.postMessage({ command: 'update', skillName: skillName });
-    }
-
-    function uninstall(skillName) {
-      vscode.postMessage({ command: 'uninstall', skillName: skillName });
-    }
-
-    function search(text) {
-      // Client-side debounce
-      if (window.searchTimeout) clearTimeout(window.searchTimeout);
-      
-      const isGlobal = document.getElementById('marketSelect').value === 'Global Search (skills.sh)';
-      
-      // Immediate local filter for non-global
-      if (!isGlobal) {
-        filterLocal(text);
-      }
-
-      window.searchTimeout = setTimeout(() => {
-        vscode.postMessage({ command: 'search', searchText: text });
-      }, 500);
-    }
-    
-    function filterLocal(text) {
-       const lowerText = text.toLowerCase();
-       const cards = document.querySelectorAll('.skill-card');
-       cards.forEach(card => {
-        const content = card.getAttribute('data-search-content') || '';
-        if (content.includes(lowerText)) {
-          card.classList.remove('hidden');
-        } else {
-          card.classList.add('hidden');
-        }
-      });
-    }
-
-    function refresh() {
-      vscode.postMessage({ command: 'refresh' });
-    }
-
-    function installAll() {
-      vscode.postMessage({ command: 'installAll' });
-    }
-
-    function uninstallAll() {
-      vscode.postMessage({ command: 'uninstallAll' });
-    }
-    
-    // Initialize state
-    document.addEventListener('DOMContentLoaded', () => {
-      const input = document.querySelector('.search-box');
-      if (input) {
-        // Restore focus if we have a value (implies we just searched/reloaded)
-        if (input.value) {
-           input.focus();
-           // Move cursor to end
-           const len = input.value.length;
-           input.setSelectionRange(len, len);
-           
-           // If local market, re-apply filter to be safe (visual sync)
-           const isGlobal = document.getElementById('marketSelect').value === 'Global Search (skills.sh)';
-           if (!isGlobal) filterLocal(input.value);
-        }
-      }
-    });
-
-    function deleteMarket() {
-      const select = document.getElementById('marketSelect');
-      vscode.postMessage({ command: 'deleteMarket', marketName: select.value });
-    }
-    
-    // Expand/Collapse Logic
-    function toggleDetails(skillName, event) {
-      // Logic handled by onclick on card
-      // event.stopPropagation() called on children prevents this from firing for them
-      
-      const details = document.getElementById('details-' + skillName);
-      const card = document.getElementById('card-' + skillName);
-      if (!details || !card) return;
-      
-      if (details.classList.contains('hidden')) {
-        details.classList.remove('hidden');
-        card.classList.add('expanded');
-      } else {
-        details.classList.add('hidden');
-        card.classList.remove('expanded');
-      }
-    }
-    
-    function copyCmd(skillName, event) {
-      if (event) event.stopPropagation();
-      const card = document.getElementById('card-' + skillName);
-      const cmd = card.querySelector('.cmd-text').innerText;
-      navigator.clipboard.writeText(cmd);
-    }
-
-    // Handle updates from extension
-    window.addEventListener('message', event => {
-      const message = event.data;
-      if (message.command === 'updateSkill') {
-        const card = document.getElementById('card-' + message.skillName);
-        if (!card) return;
-        
-        const details = card.querySelector('.skill-details');
-        const loading = details.querySelector('.detail-loading');
-        const content = details.querySelector('.detail-content');
-        
-        loading.style.display = 'none';
-        content.classList.remove('hidden');
-        
-        if (message.description) {
-           content.querySelector('.full-description').innerText = message.description;
-        }
-        if (message.installCmd) {
-           content.querySelector('.install-section').classList.remove('hidden');
-           content.querySelector('.cmd-text').innerText = message.installCmd;
-        }
-      }
-    });
-
-    // Settings Logic
-    function toggleSettings() {
-      const modal = document.getElementById('settings-modal');
-      if (modal.classList.contains('hidden')) {
-        renderSettings();
-        modal.classList.remove('hidden');
-      } else {
-        modal.classList.add('hidden');
-      }
-    }
-
-    function renderSettings() {
-      const container = document.getElementById('agent-list');
-      container.innerHTML = ALL_AGENTS.map(agent => {
-        // If PREFERRED_AGENTS is empty, we consider it "All Selected" for the UI default state? 
-        // Or should we show them as unchecked? 
-        // Backend logic: Empty = All. 
-        // So visually, if empty, we check ALL? Or check None?
-        // Checking ALL is more representative of behavior.
-        const isAll = PREFERRED_AGENTS.length === 0;
-        const checked = isAll || PREFERRED_AGENTS.includes(agent.id) ? 'checked' : '';
-        return '<div class="agent-item">' +
-             '<input type="checkbox" id="chk-' + agent.id + '" value="' + agent.id + '" ' + checked + '>' +
-             '<label for="chk-' + agent.id + '">' + agent.name + '</label>' +
-          '</div>';
-      }).join('');
-    }
-
-    function saveSettings() {
-      const checkboxes = document.querySelectorAll('#agent-list input[type="checkbox"]');
-      const selected = [];
-      checkboxes.forEach(chk => {
-        if (chk.checked) selected.push(chk.value);
-      });
-      
-      vscode.postMessage({ command: 'saveSettings', agents: selected });
-      toggleSettings();
-    }
-
-  </script>
-</body>
-</html>`;
+    return html;
   }
-
-  private _escapeHtml(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
+  // _escapeHtml removed as it is handled client-side now
 
   public dispose() {
     MarketPanel.currentPanel = undefined;

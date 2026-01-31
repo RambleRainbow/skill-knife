@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skill Markets</title>
+    <!-- CSS_URIS -->
+</head>
+
+<body>
+    <div class="header">
+        <div class="market-bar">
+            <h1>Skill Markets</h1>
+            <div class="market-controls">
+                <select id="marketSelect">
+                    <!-- Options rendered by JS -->
+                </select>
+            </div>
+        </div>
+
+        <div class="action-bar">
+            <input type="text" class="search-box" placeholder="Search skills..." id="searchInput">
+
+            <div class="tools-group">
+                <button class="icon-btn" id="refreshBtn" title="Refresh Market">
+                    <span class="codicon codicon-refresh"></span>
+                </button>
+                <button class="icon-btn" id="settingsBtn" title="Installation Settings">
+                    <span class="codicon codicon-gear"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="skills-container" class="skills-list">
+        <!-- Skills rendered by JS -->
+        <div class="loading">Initializing...</div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 style="margin-top:0">Default Install Targets</h3>
+            <div style="font-size:0.9em; color:var(--vscode-descriptionForeground)">Select which agents to install
+                skills to by default.</div>
+            <div id="agent-list" class="agent-list">
+                <!-- Agents rendered by JS -->
+            </div>
+            <div class="modal-actions">
+                <button id="cancelSettingsBtn">Cancel</button>
+                <button id="saveSettingsBtn"
+                    style="background:var(--vscode-button-background); color:var(--vscode-button-foreground)">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initial State Placeholder
+        /* INITIAL_DATA */
+    </script>
+    <!-- SCRIPT_URIS -->
+</body>
+
+</html>
