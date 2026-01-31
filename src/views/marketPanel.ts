@@ -705,212 +705,189 @@ export class MarketPanel {
   <title>Skill Market</title>
   <link href="${this._panel.webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'codicon.css'))}" rel="stylesheet" />
   <style>
-    :root {
-      --container-paddding: 20px;
-      --input-padding-vertical: 6px;
-      --input-padding-horizontal: 4px;
-      --input-margin-vertical: 4px;
-      --input-margin-horizontal: 0;
-    }
-
     body {
       font-family: var(--vscode-font-family);
-      padding: 0;
-      margin: 0;
-      color: var(--vscode-editor-foreground);
+      padding: 20px;
+      color: var(--vscode-foreground);
       background-color: var(--vscode-editor-background);
     }
-
-    .toolbar {
-      position: sticky;
-      top: 0;
-      background: var(--vscode-editor-background);
-      padding: 10px 20px;
-      border-bottom: 1px solid var(--vscode-widget-border);
+    .header {
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--vscode-panel-border);
+      padding-bottom: 15px;
+    }
+    .market-bar {
       display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       gap: 10px;
-      z-index: 10;
+    }
+    .market-controls {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.5em;
+    }
+    select {
+      padding: 5px 10px;
+      background: var(--vscode-dropdown-background);
+      color: var(--vscode-dropdown-foreground);
+      border: 1px solid var(--vscode-dropdown-border);
+      border-radius: 3px;
+      min-width: 200px;
+    }
+    button {
+      padding: 5px 10px;
+      background: var(--vscode-button-background);
+      color: var(--vscode-button-foreground);
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: var(--vscode-button-hoverBackground);
+    }
+    .icon-btn {
+      padding: 5px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      justify-content: center;
       align-items: center;
     }
-
+    .icon-btn.delete-btn {
+      background: var(--vscode-button-secondaryBackground);
+    }
+    .icon-btn.delete-btn:hover {
+      background: var(--vscode-errorForeground);
+      color: white;
+    }
+    
     .search-box {
-      flex: 1;
-      padding: 6px;
+      flex-grow: 1;
+      padding: 6px 10px;
       background: var(--vscode-input-background);
       color: var(--vscode-input-foreground);
       border: 1px solid var(--vscode-input-border);
-      border-radius: 2px;
-    }
-
-    .market-select {
-        background: var(--vscode-dropdown-background);
-        color: var(--vscode-dropdown-foreground);
-        border: 1px solid var(--vscode-dropdown-border);
-        padding: 6px;
-        border-radius: 2px;
-        max-width: 200px;
-    }
-
-    .icon-btn {
-        background: none;
-        border: none;
-        color: var(--vscode-icon-foreground);
-        cursor: pointer;
-        padding: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .icon-btn:hover {
-        background: var(--vscode-toolbar-hoverBackground);
-        border-radius: 2px;
-    }
-
-    .container {
-      padding: 20px;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 12px;
+      border-radius: 3px;
     }
 
     .skill-card {
-      background: var(--vscode-editor-background);
-      border: 1px solid var(--vscode-widget-border);
-      padding: 12px;
-      border-radius: 4px;
-      display: flex;
-      flex-direction: column;
+      background: var(--vscode-editor-inactiveSelectionBackground);
+      border: 1px solid var(--vscode-panel-border);
+      border-radius: 5px;
+      padding: 15px;
+      margin-bottom: 10px;
       cursor: pointer;
       transition: border-color 0.2s;
     }
-    
     .skill-card:hover {
         border-color: var(--vscode-focusBorder);
     }
-
+    .skill-card.hidden {
+      display: none;
+    }
     .skill-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 8px;
+      margin-bottom: 8px;
     }
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex: 1;
-      min-width: 0;
-    }
-
-    .skill-icon {
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px; 
-    }
-
     .skill-name {
       font-weight: bold;
-      font-size: 14px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size: 1.1em;
     }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .skill-description {
+      color: var(--vscode-descriptionForeground);
+      font-size: 0.9em;
     }
-
-    .scope-badges {
-        display: flex;
-        gap: 4px;
-    }
-
-    .scope-badge {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 18px;
-        height: 18px;
-        font-size: 10px;
-        font-weight: bold;
-        border-radius: 50%;
-        cursor: help;
-        color: #fff;
-    }
-    
-    .scope-badge.project {
-        background-color: #3b82f6; /* Blue for Project */
-    }
-    
-    .scope-badge.global {
-        background-color: #10b981; /* Green for Global */
-    }
-
-    .skill-meta-stack {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        font-size: 11px;
-        color: var(--vscode-descriptionForeground);
-        line-height: 1.2;
-    }
-
-    .meta-row {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-    
-    .source-link {
-        color: var(--vscode-textLink-foreground);
-        text-decoration: none;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-    .source-link:hover {
-        text-decoration: underline;
-    }
-
     .action-btn {
       padding: 4px 12px;
-      border: none;
-      border-radius: 2px;
-      cursor: pointer;
       font-size: 12px;
-      min-width: 70px;
+      line-height: 18px;
+      min-width: 80px;
+      text-align: center;
+      border: 1px solid transparent;
     }
-
     .install-btn {
-      background: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
+      /* Inherits primary button styles */
     }
-
-    .install-btn:hover {
-      background: var(--vscode-button-hoverBackground);
-    }
-
-    .update-btn {
+    .update-btn, .uninstall-btn {
       background: var(--vscode-button-secondaryBackground);
       color: var(--vscode-button-secondaryForeground);
     }
-    
-    .uninstall-btn {
-        background: var(--vscode-errorForeground);
-        color: white;
-        opacity: 0.8;
+    .update-btn:hover, .uninstall-btn:hover {
+      background: var(--vscode-button-secondaryHoverBackground);
     }
-    .uninstall-btn:hover {
-        opacity: 1;
+    .loading, .empty {
+      text-align: center;
+      padding: 40px;
+      color: var(--vscode-descriptionForeground);
+    }
+
+    .tools-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 5px; overflow: hidden; }
+    .header-right { 
+        display: flex; 
+        align-items: center; 
+        gap: 10px;
+        flex-shrink: 0; 
+    }
+
+    .expand-indicator {
+      display: inline-block;
+      margin-right: 6px;
+      font-size: 0.8em;
+      transition: transform 0.2s ease;
+      color: var(--vscode-descriptionForeground);
+    }
+    .skill-card.expanded .expand-indicator {
+      transform: rotate(90deg);
+    }
+    
+    .meta-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        font-size: 0.8em;
+        line-height: 1.2;
+    }
+    .meta-source {
+        color: var(--vscode-textLink-foreground);
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .meta-source:hover { text-decoration: underline; }
+    .meta-installs {
+        color: var(--vscode-descriptionForeground);
+        font-size: 0.9em;
+    }
+    .meta-desc {
+        color: var(--vscode-descriptionForeground);
+        font-size: 0.9em;
+        max-width: 200px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .skill-details {
+      margin-top: 5px;
+      padding-top: 10px;
+      border-top: 1px solid var(--vscode-widget-border);
       /* Removed indentation and box style for cleaner look */
       background: transparent;
       border-radius: 0;
@@ -1009,6 +986,32 @@ export class MarketPanel {
         justify-content: flex-end;
         gap: 10px;
     }
+
+    /* --- New Feature Support (Merged) --- */
+    .skill-icon {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 5px;
+    }
+    .scope-badges { display: flex; gap: 4px; margin-right: 8px; }
+    .scope-badge {
+        display: flex; align-items: center; justify-content: center;
+        width: 18px; height: 18px; font-size: 10px; font-weight: bold;
+        border-radius: 50%; color: #fff; cursor: help;
+    }
+    .scope-badge.project { background-color: #3b82f6; }
+    .scope-badge.global { background-color: #10b981; }
+
+    .skill-meta-stack {
+        display: flex; flex-direction: column; align-items: flex-end;
+        font-size: 0.8em; line-height: 1.2;
+    }
+    .meta-row { display: flex; align-items: center; gap: 4px; }
+    .source-link { color: var(--vscode-textLink-foreground); text-decoration: none; }
+    .source-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
