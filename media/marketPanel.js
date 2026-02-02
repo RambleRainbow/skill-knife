@@ -142,12 +142,10 @@ function renderSkills() {
             metaHtml = `
            <div class="skill-meta-stack">
              <div class="meta-row">
-                ${ICONS.cloud}
-                <span>${installCount}</span>
+                <span style="font-size:11px; font-weight:500;">${installCount}</span>
              </div>
              <div class="meta-row">
                 <a href="https://github.com/${skill.repoPath}" class="source-link" title="View Source">
-                    ${ICONS.github}
                     GitHub
                 </a>
              </div>

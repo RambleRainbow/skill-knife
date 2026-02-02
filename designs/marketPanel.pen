@@ -1,0 +1,680 @@
+{
+  "version": "2.6",
+  "children": [
+    {
+      "type": "frame",
+      "id": "uOWbe",
+      "x": 0,
+      "y": 0,
+      "name": "mainFrame",
+      "width": "fill_container(0)",
+      "height": "fill_container(0)",
+      "fill": "#FDF6E3",
+      "layout": "vertical",
+      "gap": 16,
+      "padding": 20,
+      "children": [
+        {
+          "type": "frame",
+          "id": "6eKP6",
+          "name": "header",
+          "width": "fill_container",
+          "height": 40,
+          "gap": 12,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "PA2hw",
+              "name": "title",
+              "fill": "#586E75",
+              "content": "Skill Markets",
+              "fontFamily": "Inter",
+              "fontSize": 20,
+              "fontWeight": "bold"
+            },
+            {
+              "type": "frame",
+              "id": "cbodP",
+              "name": "marketSelector",
+              "fill": "#EAE7D6",
+              "cornerRadius": 4,
+              "padding": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "cViis",
+                  "name": "msText",
+                  "fill": "#586E75",
+                  "content": "Global Search (skills.sh)",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "b8pMT",
+          "name": "searchRow",
+          "width": "fill_container",
+          "height": 36,
+          "gap": 8,
+          "children": [
+            {
+              "type": "frame",
+              "id": "goSyK",
+              "name": "searchInput",
+              "width": "fill_container",
+              "fill": "#EAE7D6",
+              "cornerRadius": 4,
+              "padding": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "xj12c",
+                  "name": "placehold",
+                  "fill": "#93A1A1",
+                  "content": "Search skills...",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "luS2G",
+          "name": "skillsList",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 10,
+          "children": [
+            {
+              "type": "frame",
+              "id": "mrI9x",
+              "name": "card1",
+              "width": "fill_container",
+              "height": 60,
+              "fill": "#FDF6E3",
+              "cornerRadius": 6,
+              "gap": 16,
+              "padding": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "tQIWo",
+                  "name": "c1Name",
+                  "fill": "#586E75",
+                  "content": "vercel-react-best-practices",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "bold"
+                },
+                {
+                  "type": "frame",
+                  "id": "amYat",
+                  "name": "c1Meta",
+                  "gap": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "np2NT",
+                      "name": "c1Stats",
+                      "layout": "vertical",
+                      "gap": 2,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "kZJCm",
+                          "name": "c1Inst",
+                          "fill": "#586E75",
+                          "content": "75000",
+                          "fontFamily": "Inter",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "VjykF",
+                          "name": "c1Link",
+                          "fill": "#268BD2",
+                          "content": "GitHub",
+                          "fontFamily": "Inter",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "topvu",
+                      "name": "c1Btn",
+                      "width": 80,
+                      "height": 32,
+                      "fill": "#AFA568",
+                      "cornerRadius": 4,
+                      "layout": "vertical",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "TQNCG",
+                          "name": "c1BtnTxt",
+                          "fill": "#FFFFFF",
+                          "content": "Install",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "KuVE4",
+              "name": "card2",
+              "width": "fill_container",
+              "height": 60,
+              "fill": "#FDF6E3",
+              "cornerRadius": 6,
+              "gap": 16,
+              "padding": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "J0XYK",
+                  "name": "c2Name",
+                  "fill": "#586E75",
+                  "content": "find-skills",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "bold"
+                },
+                {
+                  "type": "frame",
+                  "id": "RbRMw",
+                  "name": "c2Meta",
+                  "gap": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "ZQKZk",
+                      "name": "badge",
+                      "width": 24,
+                      "height": 24,
+                      "fill": "#2AA198",
+                      "cornerRadius": 12,
+                      "layout": "vertical",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "UcKBa",
+                          "name": "bText",
+                          "fill": "#FFFFFF",
+                          "content": "G",
+                          "fontFamily": "Inter",
+                          "fontSize": 12,
+                          "fontWeight": "bold"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "df9ei",
+                      "name": "c2Stats",
+                      "layout": "vertical",
+                      "gap": 2,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "P6NQW",
+                          "name": "c2Inst",
+                          "fill": "#586E75",
+                          "content": "62500",
+                          "fontFamily": "Inter",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Qyby9",
+                          "name": "c2Link",
+                          "fill": "#268BD2",
+                          "content": "GitHub",
+                          "fontFamily": "Inter",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "rqsKX",
+                      "name": "c2Btn",
+                      "width": 80,
+                      "height": 32,
+                      "fill": "#586E75",
+                      "cornerRadius": 4,
+                      "layout": "vertical",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Zmnpr",
+                          "name": "c2BtnTxt",
+                          "fill": "#FFFFFF",
+                          "content": "Uninstall",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "4fCOP",
+      "x": 425,
+      "y": 84,
+      "name": "settingsBtn",
+      "width": 36,
+      "height": 36,
+      "fill": "#AFA568",
+      "cornerRadius": 4,
+      "layout": "vertical",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "pSB7d",
+          "name": "sIcon",
+          "width": 0,
+          "height": 0,
+          "iconFontFamily": "Material Symbols Rounded",
+          "fill": "#FFFFFF"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "AmEtV",
+      "x": 362,
+      "y": 84,
+      "name": "refreshBtn",
+      "width": 36,
+      "height": 36,
+      "fill": "#AFA568",
+      "cornerRadius": 4,
+      "layout": "vertical",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "PmE2F",
+          "name": "rIcon",
+          "width": 0,
+          "height": 0,
+          "iconFontFamily": "Material Symbols Rounded",
+          "fill": "#FFFFFF"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "j6bC5",
+      "x": 511,
+      "y": 0,
+      "name": "Market Panel",
+      "width": 800,
+      "height": 600,
+      "fill": "#fdf6e3",
+      "cornerRadius": 8,
+      "layout": "vertical",
+      "gap": 24,
+      "padding": 24,
+      "children": [
+        {
+          "type": "frame",
+          "id": "7QSsc",
+          "name": "Header",
+          "width": "fill_container",
+          "children": [
+            {
+              "type": "text",
+              "id": "kXMRn",
+              "name": "title",
+              "fill": "#657b83",
+              "content": "Skill Markets",
+              "fontFamily": "Inter",
+              "fontSize": 24,
+              "fontWeight": "bold"
+            },
+            {
+              "type": "frame",
+              "id": "IKW5l",
+              "name": "Spacer",
+              "width": "fill_container",
+              "height": 1
+            },
+            {
+              "type": "frame",
+              "id": "d5zqo",
+              "name": "marketSelector",
+              "fill": "#eee8d5",
+              "cornerRadius": 4,
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "zwQTL",
+                  "name": "selectorText",
+                  "fill": "#586e75",
+                  "content": "All Markets",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "medium"
+                },
+                {
+                  "type": "text",
+                  "id": "UdlkI",
+                  "name": "downArrow",
+                  "fill": "#93a1a1",
+                  "content": "▼",
+                  "fontFamily": "Inter",
+                  "fontSize": 10,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "fLINx",
+          "name": "Search Row",
+          "width": "fill_container",
+          "gap": 12,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "gLOi6",
+              "name": "Search Input",
+              "width": "fill_container",
+              "height": 36,
+              "fill": "#ffffff",
+              "cornerRadius": 4,
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "UeGSU",
+                  "name": "searchIcon",
+                  "fill": "#93a1a1",
+                  "content": "🔍",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "JOl4F",
+                  "name": "searchText",
+                  "fill": "#93a1a1",
+                  "content": "Search skills...",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "384Ir",
+              "name": "Refresh Button",
+              "width": 36,
+              "height": 36,
+              "fill": "#eee8d5",
+              "cornerRadius": 4,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "ynF0j",
+                  "name": "refreshIcon",
+                  "fill": "#586e75",
+                  "content": "↻",
+                  "fontFamily": "Inter",
+                  "fontSize": 18,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "A78E6",
+              "name": "Setting Button",
+              "width": 36,
+              "height": 36,
+              "fill": "#eee8d5",
+              "cornerRadius": 4,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "adyKe",
+                  "name": "settingIcon",
+                  "fill": "#586e75",
+                  "content": "⚙",
+                  "fontFamily": "Inter",
+                  "fontSize": 18,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "fjyvW",
+          "name": "Skill List",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 16,
+          "children": [
+            {
+              "type": "frame",
+              "id": "EYJmj",
+              "name": "Skill Card 1",
+              "width": "fill_container",
+              "fill": "#ffffff",
+              "cornerRadius": 6,
+              "layout": "vertical",
+              "gap": 12,
+              "padding": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "SAjLE",
+                  "name": "Row",
+                  "width": "fill_container",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "WMTAn",
+                      "name": "c1Icon",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "#eee8d5",
+                      "cornerRadius": 4
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Ztnxc",
+                      "name": "c1Meta",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 4,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "t501m",
+                          "name": "c1Name",
+                          "fill": "#586e75",
+                          "content": "Python Linter",
+                          "fontFamily": "Inter",
+                          "fontSize": 16,
+                          "fontWeight": "bold"
+                        },
+                        {
+                          "type": "text",
+                          "id": "GS0OQ",
+                          "name": "c1Desc",
+                          "fill": "#93a1a1",
+                          "content": "Advanced linting capabilities for Python codebases.",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "U0if6",
+                      "name": "c1Action",
+                      "width": 80,
+                      "height": 32,
+                      "fill": "#268bd2",
+                      "cornerRadius": 4,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "GoWkp",
+                          "name": "c1BtnText",
+                          "fill": "#ffffff",
+                          "content": "Install",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "medium"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "vorL0",
+              "name": "Skill Card 2",
+              "width": "fill_container",
+              "fill": "#fdf6e3",
+              "cornerRadius": 6,
+              "layout": "vertical",
+              "gap": 12,
+              "padding": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "83uaM",
+                  "name": "Row",
+                  "width": "fill_container",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "APnbV",
+                      "name": "c2Icon",
+                      "width": 40,
+                      "height": 40,
+                      "fill": "#eee8d5",
+                      "cornerRadius": 4
+                    },
+                    {
+                      "type": "frame",
+                      "id": "mjFKJ",
+                      "name": "c2Meta",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 4,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "mE2pp",
+                          "name": "c2Name",
+                          "fill": "#586e75",
+                          "content": "Web Formatter",
+                          "fontFamily": "Inter",
+                          "fontSize": 16,
+                          "fontWeight": "bold"
+                        },
+                        {
+                          "type": "text",
+                          "id": "NdNfl",
+                          "name": "c2Desc",
+                          "fill": "#93a1a1",
+                          "content": "Beautiful formatting for HTML/CSS/JS.",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "AkoLY",
+                      "name": "c2Action",
+                      "width": 80,
+                      "height": 32,
+                      "fill": "#eee8d5",
+                      "cornerRadius": 4,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "gHM53",
+                          "name": "c2BtnText",
+                          "fill": "#586e75",
+                          "content": "Uninstall",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "medium"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
