@@ -1,7 +1,8 @@
 const vscode = acquireVsCodeApi();
 
 // State management
-let state = window.skillKnifeData || {
+const previousState = vscode.getState();
+let state = previousState || window.skillKnifeData || {
     markets: [],
     currentMarket: null,
     skills: [],
@@ -229,6 +230,7 @@ function setupEventListeners() {
     elements.searchInput?.addEventListener('input', (e) => {
         const text = e.target.value;
         state.searchText = text; // Optimistic update
+        vscode.setState(state);
 
         // Local Filter immediate feedback
         const isGlobal = state.currentMarket?.name === SKILL_SH_MARKET_NAME;
@@ -309,6 +311,7 @@ window.addEventListener('message', event => {
     if (message.command === 'updateState') {
         // Merge state
         state = { ...state, ...message.state };
+        vscode.setState(state);
         render();
     }
 
@@ -319,6 +322,7 @@ window.addEventListener('message', event => {
             if (message.description) skill.description = message.description;
             // Re-render only if needed, or re-render all for simplicity
             // Optimization: re-render specific card if heavy
+            vscode.setState(state);
             renderSkills();
         }
     }
