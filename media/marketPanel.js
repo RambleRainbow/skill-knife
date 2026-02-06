@@ -10,7 +10,8 @@ let state = previousState || window.skillKnifeData || {
     preferredAgents: [],
     allAgents: [],
     searchText: '',
-    loading: false
+    loading: false,
+    expandedSkills: []
 };
 
 // DOM Elements
@@ -157,8 +158,10 @@ function renderSkills() {
         // Search data attribute
         const searchContent = `${skill.name} ${overview}`.toLowerCase();
 
+        const isExpanded = state.expandedSkills && state.expandedSkills.includes(skill.name);
+
         return `
-      <div class="skill-card" id="card-${escapeHtml(skill.name)}" onclick="toggleDetails('${escapeHtml(skill.name)}')" data-search-content="${escapeHtml(searchContent)}">
+      <div class="skill-card ${isExpanded ? 'expanded' : ''}" id="card-${escapeHtml(skill.name)}" onclick="toggleDetails('${escapeHtml(skill.name)}')" data-search-content="${escapeHtml(searchContent)}">
         <div class="skill-header">
           <div class="header-left">
             <div class="skill-icon">
@@ -172,7 +175,7 @@ function renderSkills() {
             <div onclick="event.stopPropagation()">${buttonHtml}</div>
           </div>
         </div>
-        <div class="skill-details hidden" id="details-${escapeHtml(skill.name)}">
+        <div class="skill-details ${isExpanded ? '' : 'hidden'}" id="details-${escapeHtml(skill.name)}">
             <div class="detail-content">
                 <div class="detail-row">
                     <strong class="section-title">Overview:</strong>
@@ -255,11 +258,26 @@ function setupEventListeners() {
 // Handlers (from old JS)
 
 function toggleDetails(skillName) {
+    // 1. Update State
+    if (!state.expandedSkills) state.expandedSkills = [];
+    const idx = state.expandedSkills.indexOf(skillName);
+
+    let expanding = false;
+    if (idx === -1) {
+        state.expandedSkills.push(skillName);
+        expanding = true;
+    } else {
+        state.expandedSkills.splice(idx, 1);
+        expanding = false;
+    }
+    vscode.setState(state);
+
+    // 2. Update DOM immediately (faster than full re-render)
     const details = document.getElementById('details-' + skillName);
     const card = document.getElementById('card-' + skillName);
-    if (!details || !card) return;
+    if (!details || !card) return; // Should not happen
 
-    if (details.classList.contains('hidden')) {
+    if (expanding) {
         details.classList.remove('hidden');
         card.classList.add('expanded');
     } else {
