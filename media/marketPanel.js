@@ -184,7 +184,7 @@ function renderSkills() {
                 ${!isInstalled ? `
                 <div class="detail-row install-section">
                     <div class="install-block">
-                        <div class="cmd-text">npx skills add ${escapeHtml(skill.repoPath || skill.name)}</div>
+                        <div class="cmd-text">${escapeHtml(skill.installCmd || `npx skills add ${skill.repoPath || skill.name}`)}</div>
                         <button class="action-btn copy-btn" onclick="copyCmd('${escapeHtml(skill.name)}', event)" title="Copy Command">Copy</button>
                     </div>
                 </div>` : ''}
@@ -338,6 +338,7 @@ window.addEventListener('message', event => {
         const skill = state.skills.find(s => s.name === message.skillName);
         if (skill) {
             if (message.description) skill.description = message.description;
+            if (message.installCmd) skill.installCmd = message.installCmd;
             // Re-render only if needed, or re-render all for simplicity
             // Optimization: re-render specific card if heavy
             vscode.setState(state);

@@ -134,8 +134,8 @@ export class SkillShService {
             if (proseMatch) {
                 const rawHtml = proseMatch[1];
                 description = rawHtml.replace(/<[^>]*>/g, '').trim();
-                if (description.length > 500) {
-                    description = description.substring(0, 500) + '...';
+                if (description.length > 5000) {
+                    description = description.substring(0, 5000) + '...';
                 }
             }
 
