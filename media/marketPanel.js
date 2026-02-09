@@ -136,9 +136,16 @@ function renderSkills() {
         let overview = (skill.description || '').trim() || 'No description available.';
 
         if (isGlobal) {
-            // Parse installs from desc (Hack from TS logic)
-            const match = (skill.description || '').match(/Installs: (\d+)/);
-            const installCount = match ? match[1] : '0';
+            // Use installs property if available, fallback to parsing description for legacy/compatibility
+            let installCount = skill.installs !== undefined ? skill.installs : 0;
+
+            // If no property (or 0), try to parse from description as fallback
+            if (!installCount) {
+                const match = (skill.description || '').match(/Installs: (\d+)/);
+                if (match) installCount = match[1];
+            }
+
+            // Always clean up the overview text to remove the "Installs: N" string if present
             overview = (skill.description || '').replace(/Installs: \d+/, '').trim() || 'No description available.';
 
             metaHtml = `

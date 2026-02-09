@@ -235,11 +235,12 @@ export class MarketPanel {
       // Map to MarketSkill
       this._skills = results.map(r => ({
         name: r.name, // e.g. "docker-expert"
-        description: `Installs: ${r.installs}`, // Store installs in description for now
+        description: `Installs: ${r.installs}`, // Store installs in description for now (legacy fallback)
         market: this._currentMarket!,
         repoPath: r.topSource, // e.g. "sickn33/antigravity-awesome-skills"
         subpath: r.name,
-        commitHash: 'HEAD'
+        commitHash: 'HEAD',
+        installs: r.installs // Explicitly store installs
       }));
 
     } catch (error) {
@@ -263,7 +264,8 @@ export class MarketPanel {
       market: this._currentMarket!,
       repoPath: r.topSource, // e.g. "sickn33/antigravity-awesome-skills"
       subpath: r.name,
-      commitHash: 'HEAD'
+      commitHash: 'HEAD',
+      installs: r.installs // Explicitly store installs
     }));
   }
 

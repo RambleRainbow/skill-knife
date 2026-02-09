@@ -16,6 +16,8 @@ export interface MarketSkill {
   repoPath: string; // e.g., "anthropics/skills"
   subpath: string;  // e.g., "skills/brainstorming"
   commitHash?: string; // Git commit hash for version tracking
+  installs?: number; // Number of installations (from skills.sh)
+  installCmd?: string; // Exact install command
 }
 
 /**
