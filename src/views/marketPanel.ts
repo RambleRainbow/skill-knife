@@ -132,14 +132,15 @@ export class MarketPanel {
 
       case 'install':
         if (message.skillName) {
-          await this._showInstallDialog(message.skillName);
+          await this._showInstallDialog(message.skillName, message.scope);
           this._refreshInstalledSkills();
         }
         break;
 
-      case 'update':
+      case 'update': // Reuse install logic for scoped update if needed
         if (message.skillName) {
-          await this._showUpdateDialog(message.skillName);
+          // We treat update as install for now as "add" handles both
+          await this._showInstallDialog(message.skillName, message.scope);
           this._refreshInstalledSkills();
         }
         break;
@@ -434,7 +435,7 @@ export class MarketPanel {
     this._refreshInstalledSkills();
   }
 
-  private async _showInstallDialog(skillName: string) {
+  private async _showInstallDialog(skillName: string, scope?: string) {
     const skill = this._skills.find((s) => s.name === skillName);
     if (!skill) {
       return;
@@ -442,12 +443,19 @@ export class MarketPanel {
 
     // Direct Install (Project + Universal)
     try {
-      const args = ['add', ...getInstallArgs(skill), ...getAgentArgs(PersistenceService.getPreferredAgents()), '-y'];
+      const args = ['add', ...getInstallArgs(skill), ...getAgentArgs(PersistenceService.getPreferredAgents())];
+
+      // Handle Scope
+      if (scope === 'global') {
+        args.push('-g');
+      }
+
+      args.push('-y');
 
       // We can't easily wait for interactive terminal, so we show info and launch
       await runSkillsCliInteractive(args);
 
-      vscode.window.showInformationMessage(`Installation for ${skill.name} completed.`);
+      vscode.window.showInformationMessage(`Installation for ${skill.name} completed.`); // Ideally we wait for exit code but generic runner assumes success launch
 
       // Refresh views
       vscode.commands.executeCommand('skillKnife.refresh'); // Sidebar
@@ -457,27 +465,7 @@ export class MarketPanel {
     }
   }
 
-  private async _showUpdateDialog(skillName: string) {
-    const skill = this._skills.find((s) => s.name === skillName);
-    if (!skill) {
-      return;
-    }
 
-    // Direct Update using "add" to reinstall/update
-    try {
-      const args = ['add', ...getInstallArgs(skill), ...getAgentArgs(PersistenceService.getPreferredAgents()), '-y'];
-
-      await runSkillsCliInteractive(args);
-
-      vscode.window.showInformationMessage(`Update for ${skill.name} completed.`);
-
-      // Refresh views
-      vscode.commands.executeCommand('skillKnife.refresh'); // Sidebar
-      this._loadSkills(); // Market Panel
-    } catch (error) {
-      vscode.window.showErrorMessage(`Failed to update ${skill.name}: ${error}`);
-    }
-  }
 
   private async _showUninstallDialog(skillName: string, scope?: string) {
     try {

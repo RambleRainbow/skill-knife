@@ -212,6 +212,53 @@ h1 {
 }
 
 /* Action Buttons */
+.scope-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.scope-action-btn {
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.scope-action-btn:hover {
+  background: var(--bg-highlight);
+  color: var(--text-primary);
+}
+
+.scope-action-btn.active.project {
+  color: var(--accent-blue);
+  background: rgba(38, 139, 210, 0.1);
+  border-color: rgba(38, 139, 210, 0.3);
+}
+
+.scope-action-btn.active.global {
+  color: var(--accent-green);
+  background: rgba(42, 161, 152, 0.1);
+  border-color: rgba(42, 161, 152, 0.3);
+}
+
+.scope-action-btn.inactive {
+  opacity: 0.6;
+}
+
+.scope-action-btn.inactive:hover {
+  opacity: 1;
+  background: var(--bg-highlight);
+}
+
+/* Legacy buttons (kept for safety or settings modal) */
 .action-btn {
   height: 32px;
   min-width: 80px;
@@ -226,22 +273,6 @@ h1 {
 
 .action-btn:hover {
   opacity: 0.9;
-}
-
-.install-btn {
-  background: var(--accent-gold);
-  color: var(--btn-text);
-}
-
-.uninstall-btn {
-  background: var(--text-primary);
-  /* Darker grey */
-  color: var(--btn-text);
-}
-
-.update-btn {
-  background: var(--accent-blue);
-  color: var(--btn-text);
 }
 
 /* --- Details Section --- */

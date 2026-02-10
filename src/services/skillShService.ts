@@ -14,6 +14,7 @@ export interface SkillShResponse {
 
 export class SkillShService {
     private static readonly API_URL = 'https://skills.sh/api/search';
+    private static readonly TIMEOUT = 5000;
 
     /**
      * Search skills on skills.sh
@@ -25,17 +26,21 @@ export class SkillShService {
             return [];
         }
 
+        console.log(`[SkillShService] Searching for "${query}"...`);
         try {
             const response = await axios.get<SkillShResponse>(this.API_URL, {
                 params: {
                     q: query,
                     limit
-                }
+                },
+                timeout: this.TIMEOUT
             });
 
-            return response.data.skills || [];
+            const results = response.data.skills || [];
+            console.log(`[SkillShService] Search returned ${results.length} results.`);
+            return results;
         } catch (error) {
-            console.error('Failed to search skills.sh:', error);
+            console.error('[SkillShService] Failed to search skills.sh:', error);
             return [];
         }
     }
@@ -44,13 +49,16 @@ export class SkillShService {
      * Get featured/top skills by scraping the homepage
      */
     public static async getFeaturedSkills(): Promise<SkillShResult[]> {
+        console.log('[SkillShService] Fetching featured skills from homepage...');
         try {
             const response = await axios.get('https://skills.sh', {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                }
+                },
+                timeout: this.TIMEOUT
             });
             const html = response.data as string;
+            // console.log(`[SkillShService] Homepage fetched, length: ${html.length}`);
 
             const results: SkillShResult[] = [];
             // Regex to match skill cards on homepage
@@ -91,9 +99,11 @@ export class SkillShService {
                 if (results.length >= 50) break;
             }
 
+            console.log(`[SkillShService] Parsed ${results.length} featured skills.`);
             return results;
         } catch (error) {
-            console.error('Failed to get featured skills:', error);
+            console.error('[SkillShService] Failed to get featured skills:', error);
+            // Return empty array so UI shows "No skills" instead of hanging
             return [];
         }
     }
@@ -120,7 +130,8 @@ export class SkillShService {
             const response = await axios.get(url, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                }
+                },
+                timeout: this.TIMEOUT
             });
             const html = response.data as string;
 
@@ -134,6 +145,7 @@ export class SkillShService {
             if (proseMatch) {
                 const rawHtml = proseMatch[1];
                 description = rawHtml.replace(/<[^>]*>/g, '').trim();
+                // Basic cleanup
                 if (description.length > 5000) {
                     description = description.substring(0, 5000) + '...';
                 }
@@ -141,7 +153,7 @@ export class SkillShService {
 
             return { description, installCmd };
         } catch (error) {
-            console.warn(`Failed to fetch details for ${skill.name}:`, error);
+            console.warn(`[SkillShService] Failed to fetch details for ${skill.name}:`, error);
             return {};
         }
     }
