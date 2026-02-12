@@ -153,13 +153,15 @@ export class MarketPanel {
         break;
 
       case 'search':
-        this._searchText = message.searchText?.toLowerCase() || '';
+        this._searchText = message.searchText || '';
 
         if (this._currentMarket?.name === SKILL_SH_MARKET.name) {
           // Trigger API search
           await this._handleGlobalSearch(this._searchText);
+        } else {
+          // For other markets, filtering is client-side, but we sync state to persist current search text
+          this._postStateUpdate();
         }
-        // For other markets, filtering is client-side, handled by JS in webview
         break;
 
       case 'refresh':
