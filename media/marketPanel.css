@@ -365,47 +365,132 @@ h1 {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
+  padding-top: 10vh;
   z-index: 1000;
+  opacity: 1;
+  transition: opacity 0.2s ease;
 }
 
 .modal.hidden {
-  display: none;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .modal-content {
   background: var(--bg-base);
-  padding: 24px;
+  padding: 0;
   border-radius: 8px;
-  width: 320px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 400px;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-highlight);
+  border-radius: 8px 8px 0 0;
+}
+
+.agent-list {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--bg-base);
+  border: 1px solid transparent;
+  /* default */
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.agent-item:hover {
+  background: var(--bg-highlight);
+  border-color: var(--border-color);
+}
+
+.agent-item label {
+  flex: 1;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  user-select: none;
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 20px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-base);
+  border-radius: 0 0 8px 8px;
+  margin-top: 0;
+  /* Override old margin */
 }
 
 .modal-actions button {
-  padding: 6px 16px;
+  padding: 8px 20px;
   border-radius: 4px;
   font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s;
+}
+
+.modal-actions button:hover {
+  opacity: 0.9;
 }
 
 #cancelSettingsBtn {
   background: transparent;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   border: 1px solid var(--border-color);
+}
+
+#cancelSettingsBtn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-primary);
 }
 
 #saveSettingsBtn {
   background: var(--accent-blue);
   color: #fff;
+  box-shadow: 0 2px 4px rgba(38, 139, 210, 0.3);
 }
 
 /* Loading / Empty States */
