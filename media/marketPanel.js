@@ -166,7 +166,7 @@ function renderSkills() {
              </div>
              <div class="meta-row">
                 <a href="https://github.com/${skill.repoPath}" class="source-link" title="View Source">
-                    GitHub
+                    ${skill.repoPath || 'GitHub'}
                 </a>
              </div>
            </div>
