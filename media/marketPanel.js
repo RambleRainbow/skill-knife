@@ -200,13 +200,44 @@ function renderSkills() {
                     <strong class="section-title">Overview:</strong>
                     <p class="full-description">${escapeHtml(overview)}</p>
                 </div>
-                ${!isInstalled ? `
+                <div class="detail-row management-section">
+                    <strong class="section-title">Manage Installation</strong>
+                    <div class="scope-grid">
+                        <!-- Project Scope Card -->
+                        <div class="scope-card ${isProjectInstalled ? 'installed' : ''}">
+                            <div class="scope-header">
+                                ${SCOPE_ICONS.project}
+                                <span class="scope-name">Project</span>
+                                ${isProjectInstalled ? '<span class="status-badge installed">Installed</span>' : '<span class="status-badge">Available</span>'}
+                            </div>
+                            <button class="scope-action-btn-large ${isProjectInstalled ? 'destructive' : 'primary'}"
+                                onclick="handleScopeAction('${isProjectInstalled ? 'uninstall' : 'install'}', '${escapeHtml(skill.name)}', 'project', event)">
+                                ${isProjectInstalled ? 'Uninstall from Project' : 'Install to Project'}
+                            </button>
+                        </div>
+
+                        <!-- Global Scope Card -->
+                        <div class="scope-card ${isGlobalInstalled ? 'installed' : ''}">
+                            <div class="scope-header">
+                                ${SCOPE_ICONS.global}
+                                <span class="scope-name">Global</span>
+                                ${isGlobalInstalled ? '<span class="status-badge installed">Installed</span>' : '<span class="status-badge">Available</span>'}
+                            </div>
+                            <button class="scope-action-btn-large ${isGlobalInstalled ? 'destructive' : 'primary'}"
+                                onclick="handleScopeAction('${isGlobalInstalled ? 'uninstall' : 'install'}', '${escapeHtml(skill.name)}', 'global', event)">
+                                ${isGlobalInstalled ? 'Uninstall Globally' : 'Install Globally'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="detail-row install-section">
+                    <strong class="section-title" style="margin-top:12px">Manual Command</strong>
                     <div class="install-block">
                         <div class="cmd-text">${escapeHtml(skill.installCmd || `npx skills add ${skill.repoPath || skill.name}`)}</div>
                         <button class="action-btn copy-btn" onclick="copyCmd('${escapeHtml(skill.name)}', event)" title="Copy Command">Copy</button>
                     </div>
-                </div>` : ''}
+                </div>
             </div>
             <div class="detail-loading" style="display:none">Loading details...</div>
         </div>

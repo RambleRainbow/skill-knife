@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Skill } from '../types';
-import { getReaderById } from '../services/skillScanner';
+
 
 export class SkillDetailPanel {
   public static currentPanel: SkillDetailPanel | undefined;
@@ -33,8 +33,31 @@ export class SkillDetailPanel {
       `Skill: ${skill.name}`,
       column || vscode.ViewColumn.One,
       {
-        enableScripts: false,
+        enableScripts: true, // Needed for interaction
+        localResourceRoots: [] // Security
       }
+    );
+
+    // Handle messages from the webview
+    panel.webview.onDidReceiveMessage(
+      async (message) => {
+        switch (message.command) {
+          case 'installProject':
+            vscode.commands.executeCommand('skillKnife.installProject', { skill: skill });
+            break;
+          case 'uninstallProject':
+            vscode.commands.executeCommand('skillKnife.uninstallProject', { skill: skill });
+            break;
+          case 'installGlobal':
+            vscode.window.showInformationMessage('Global install not yet implemented directly from detail view.');
+            break;
+          case 'uninstallGlobal':
+            vscode.commands.executeCommand('skillKnife.uninstallProject', { skill: skill }); // Reuse uninstall logic for now
+            break;
+        }
+      },
+      null,
+      []
     );
 
     SkillDetailPanel.currentPanel = new SkillDetailPanel(panel, skill);
@@ -47,15 +70,14 @@ export class SkillDetailPanel {
       const skillMdPath = path.join(skill.installations[0].path, 'SKILL.md');
       if (fs.existsSync(skillMdPath)) {
         skillMdContent = fs.readFileSync(skillMdPath, 'utf-8');
-        // Remove frontmatter for display
         skillMdContent = skillMdContent.replace(/^---\n[\s\S]*?\n---\n/, '');
-        // Escape HTML
         skillMdContent = this._escapeHtml(skillMdContent);
       }
     }
 
-    // Build installation locations HTML
-    const installationsHtml = this._buildInstallationsHtml(skill);
+    // Determine scopes
+    const isProjectInstalled = skill.installations.some(i => i.scope === 'project');
+    const isGlobalInstalled = skill.installations.some(i => i.scope === 'global');
 
     // Build source info
     let sourceHtml = '';
@@ -81,84 +103,120 @@ export class SkillDetailPanel {
       border-bottom: 1px solid var(--vscode-panel-border);
       padding-bottom: 10px;
     }
-    .installations {
-      background: var(--vscode-textBlockQuote-background);
-      border-left: 3px solid var(--vscode-textBlockQuote-border);
-      padding: 10px 15px;
-      margin: 15px 0;
-    }
-    .installation-item {
-      margin: 5px 0;
-      font-family: var(--vscode-editor-font-family);
-      font-size: 12px;
-    }
-    .scope-label {
-      font-weight: bold;
-      color: var(--vscode-textLink-foreground);
-    }
-    .content {
-      white-space: pre-wrap;
-      font-family: var(--vscode-editor-font-family);
-      font-size: 13px;
-      line-height: 1.5;
-    }
+    a { color: var(--vscode-textLink-foreground); }
     hr {
       border: none;
       border-top: 1px solid var(--vscode-panel-border);
       margin: 20px 0;
     }
+    
+    /* Action Grid */
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .scope-card {
+      background: var(--vscode-textBlockQuote-background);
+      border: 1px solid var(--vscode-widget-border);
+      padding: 16px;
+      border-radius: 6px;
+    }
+
+    .scope-title {
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .badge {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--vscode-badge-background);
+      color: var(--vscode-badge-foreground);
+    }
+
+    .badge.empty {
+      background: transparent;
+      border: 1px solid var(--vscode-descriptionForeground);
+      color: var(--vscode-descriptionForeground);
+    }
+
+    button {
+      width: 100%;
+      padding: 8px;
+      background: var(--vscode-button-background);
+      color: var(--vscode-button-foreground);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: var(--vscode-font-family);
+    }
+
+    button:hover {
+      background: var(--vscode-button-hoverBackground);
+    }
+
+    button.destructive {
+      background: var(--vscode-errorForeground); /* Red-ish fallback */
+    }
+    
+    .content {
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
   <h1>${this._escapeHtml(skill.name)}</h1>
-
-  <div class="installations">
-    <strong>Installed at:</strong>
-    ${installationsHtml}
-  </div>
-
+  
   ${sourceHtml}
+
+  <div class="action-grid">
+    <!-- Project Scope -->
+    <div class="scope-card">
+      <div class="scope-title">
+        Project Scope
+        <span class="badge ${isProjectInstalled ? '' : 'empty'}">${isProjectInstalled ? 'Installed' : 'Not Installed'}</span>
+      </div>
+      <button onclick="postMessage('${isProjectInstalled ? 'uninstallProject' : 'installProject'}', '${this._escapeHtml(skill.name)}')" class="${isProjectInstalled ? 'destructive' : ''}">
+        ${isProjectInstalled ? 'Uninstall from Project' : 'Install to Project'}
+      </button>
+    </div>
+
+    <!-- Global Scope -->
+    <div class="scope-card">
+      <div class="scope-title">
+        Global Scope
+        <span class="badge ${isGlobalInstalled ? '' : 'empty'}">${isGlobalInstalled ? 'Installed' : 'Not Installed'}</span>
+      </div>
+      <button onclick="postMessage('${isGlobalInstalled ? 'uninstallGlobal' : 'installGlobal'}', '${this._escapeHtml(skill.name)}')" class="${isGlobalInstalled ? 'destructive' : ''}">
+        ${isGlobalInstalled ? 'Uninstall Globally' : 'Install Globally'}
+      </button>
+    </div>
+  </div>
 
   <hr>
 
+  <h3>Documentation</h3>
   <div class="content">${skillMdContent}</div>
+
+  <script>
+    const vscode = acquireVsCodeApi();
+    function postMessage(command, skillName) {
+      vscode.postMessage({ command, skillName });
+    }
+  </script>
 </body>
 </html>`;
   }
 
-  private _buildInstallationsHtml(skill: Skill): string {
-    const projectInstalls: { reader: string; path: string }[] = [];
-    const globalInstalls: { reader: string; path: string }[] = [];
 
-    for (const install of skill.installations) {
-      const reader = getReaderById(install.readerId);
-      const readerName = reader?.name || install.readerId;
-
-      if (install.scope === 'project') {
-        projectInstalls.push({ reader: readerName, path: install.path });
-      } else {
-        globalInstalls.push({ reader: readerName, path: install.path });
-      }
-    }
-
-    let html = '';
-
-    if (projectInstalls.length > 0) {
-      html += `<div class="installation-item"><span class="scope-label">Project:</span></div>`;
-      for (const inst of projectInstalls) {
-        html += `<div class="installation-item">&nbsp;&nbsp;└─ ${this._escapeHtml(inst.reader)}: ${this._escapeHtml(inst.path)}</div>`;
-      }
-    }
-
-    if (globalInstalls.length > 0) {
-      html += `<div class="installation-item"><span class="scope-label">Global:</span></div>`;
-      for (const inst of globalInstalls) {
-        html += `<div class="installation-item">&nbsp;&nbsp;└─ ${this._escapeHtml(inst.reader)}: ${this._escapeHtml(inst.path)}</div>`;
-      }
-    }
-
-    return html;
-  }
 
   private _escapeHtml(text: string): string {
     return text

@@ -501,3 +501,135 @@ h1 {
   color: var(--text-secondary);
   font-size: 14px;
 }
+
+/* Skill Detail Management Cards */
+.management-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.scope-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.scope-card {
+  background: var(--bg-base);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s;
+}
+
+.scope-card:hover {
+  background: var(--bg-highlight);
+  border-color: var(--text-secondary);
+}
+
+.scope-card.installed {
+  background: rgba(var(--accent-rgb), 0.05);
+  /* Generic tint if vars allow, otherwise explicit */
+}
+
+/* Specific Tints */
+.scope-card:first-child.installed {
+  /* Project */
+  background: rgba(42, 161, 152, 0.05);
+  border-color: rgba(42, 161, 152, 0.3);
+}
+
+.scope-card:last-child.installed {
+  /* Global */
+  background: rgba(38, 139, 210, 0.05);
+  border-color: rgba(38, 139, 210, 0.3);
+}
+
+.scope-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.scope-name {
+  flex: 1;
+}
+
+.status-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-secondary);
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.scope-card:first-child .status-badge.installed {
+  background: rgba(42, 161, 152, 0.1);
+  color: var(--accent-green);
+  border-color: rgba(42, 161, 152, 0.3);
+}
+
+.scope-card:last-child .status-badge.installed {
+  background: rgba(38, 139, 210, 0.1);
+  color: var(--accent-blue);
+  border-color: rgba(38, 139, 210, 0.3);
+}
+
+.scope-action-btn-large {
+  width: 100%;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-primary);
+}
+
+.scope-action-btn-large:hover {
+  opacity: 0.9;
+  border-color: var(--text-primary);
+}
+
+.scope-action-btn-large.primary {
+  background: var(--text-primary);
+  color: var(--bg-base);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.scope-action-btn-large.destructive {
+  color: #D32F2F;
+  border-color: rgba(211, 47, 47, 0.3);
+}
+
+.scope-action-btn-large.destructive:hover {
+  background: rgba(211, 47, 47, 0.05);
+  border-color: #D32F2F;
+}
+
+.scope-action-btn-large.loading {
+  opacity: 0.7;
+  cursor: wait;
+  pointer-events: none;
+  animation: pulse 1s infinite alternate;
+}
