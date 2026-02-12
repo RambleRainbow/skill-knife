@@ -195,6 +195,10 @@ export class MarketPanel {
           this._postStateUpdate();
         }
         break;
+
+      case 'saveProfile':
+        await this._handleSaveProfile();
+        break;
     }
   }
 
@@ -589,6 +593,47 @@ export class MarketPanel {
 
     this._updateContent();
     this._loadSkills();
+  }
+
+  private async _handleSaveProfile() {
+    // 1. Get currently installed skills in project scope
+    // Note: this._installedSkills contains all scanned skills
+    const projectSkills = this._installedSkills.filter(s =>
+      s.installations.some(i => i.scope === 'project')
+    );
+
+    if (projectSkills.length === 0) {
+      vscode.window.showInformationMessage('No skills installed in the current project to save.');
+      return;
+    }
+
+    // 2. Ask for profile name
+    const profileName = await vscode.window.showInputBox({
+      title: 'Save Profile',
+      placeHolder: 'Enter profile name (e.g., "Web Dev Stack")',
+      validateInput: (value) => value ? null : 'Name is required'
+    });
+
+    if (!profileName) return;
+
+    // 3. Create profile object
+    const profile = {
+      name: profileName,
+      created: Date.now(),
+      skills: projectSkills.map(s => ({
+        name: s.name,
+        // Best effort to capture source info if available in metadata
+        source: s.metadata?.source || 'unknown'
+      }))
+    };
+
+    // 4. Save via PersistenceService
+    try {
+      PersistenceService.saveProfile(profile);
+      vscode.window.showInformationMessage(`Profile "${profileName}" saved with ${projectSkills.length} skills.`);
+    } catch (e) {
+      vscode.window.showErrorMessage(`Failed to save profile: ${e}`);
+    }
   }
 
   private _updateContent() {

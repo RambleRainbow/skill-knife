@@ -24,7 +24,8 @@ const elements = {
     saveSettingsBtn: document.getElementById('saveSettingsBtn'),
     skillsContainer: document.getElementById('skills-container'),
     settingsModal: document.getElementById('settings-modal'),
-    agentList: document.getElementById('agent-list')
+    agentList: document.getElementById('agent-list'),
+    saveProfileBtn: document.getElementById('saveProfileBtn')
 };
 
 // Icons (replicated from TS logic)
@@ -283,6 +284,7 @@ function setupEventListeners() {
     });
 
     elements.refreshBtn?.addEventListener('click', () => postCommand('refresh'));
+    elements.saveProfileBtn?.addEventListener('click', () => postCommand('saveProfile'));
 
     elements.settingsBtn?.addEventListener('click', toggleSettings);
     elements.cancelSettingsBtn?.addEventListener('click', toggleSettings);
