@@ -96,7 +96,7 @@ function renderSkills() {
         return;
     }
 
-    const html = filteredSkills.map(skill => {
+    const html = filteredSkills.map((skill, index) => {
         const installedSkill = state.installedSkills.find(s => s.name === skill.name);
         const isInstalled = !!installedSkill;
 
@@ -104,11 +104,6 @@ function renderSkills() {
         let hasUpdate = false;
         if (isInstalled && installedSkill) {
             // Simple version check if available
-            // Note: Logic mirrored from TS `hasUpdateAvailable`
-            // We assume backend passes processed flags or we do simple compare
-            // For Robustness: let's rely on backend passing 'hasUpdate' flag in skill object ideally
-            // BUT current state structure likely needs raw data. 
-            // Let's implement simplified check: installed version != market version
             if (skill.version && installedSkill.version && skill.version !== installedSkill.version) {
                 hasUpdate = true;
             }
@@ -122,8 +117,6 @@ function renderSkills() {
             project: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><text x="8" y="11" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor" font-weight="bold">P</text></svg>`,
             global: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2"/><text x="8" y="11" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor" font-weight="bold">G</text></svg>`
         };
-
-        // ... inside renderSkills ...
 
         // Project Button
         const projectAction = isProjectInstalled ? 'uninstall' : 'install';
@@ -142,10 +135,17 @@ function renderSkills() {
         const globalBtn = `<button class="scope-action-btn ${globalClass} global" onclick="handleScopeAction('${globalAction}', '${escapeHtml(skill.name)}', 'global', event)" title="${globalTitle}">${globalIcon}</button>`;
 
 
-        buttonHtml = `<div class="scope-actions">${projectBtn}${globalBtn}</div>`;
+        const buttonHtml = `<div class="scope-actions">${projectBtn}${globalBtn}</div>`;
+
+        // Unique ID for DOM manipulation
+        const cardId = `card-${index}`;
+        const detailsId = `details-${index}`;
 
         let metaHtml = '';
         let overview = (skill.description || '').trim() || 'No description available.';
+
+        // Determine Market Type (Global vs Local) based on property or convention
+        const isGlobal = (skill.market && skill.market.name === SKILL_SH_MARKET_NAME);
 
         if (isGlobal) {
             // Use installs property if available, fallback to parsing description for legacy/compatibility
@@ -160,6 +160,9 @@ function renderSkills() {
             // Always clean up the overview text to remove the "Installs: N" string if present
             overview = (skill.description || '').replace(/Installs: \d+/, '').trim() || 'No description available.';
 
+            // Source Logic: Prefer repoPath, fallback to "Source" but never generic "GitHub" without link
+            const sourceText = skill.repoPath || 'Source';
+
             metaHtml = `
            <div class="skill-meta-stack">
              <div class="meta-row">
@@ -167,7 +170,7 @@ function renderSkills() {
              </div>
              <div class="meta-row">
                 <a href="https://github.com/${skill.repoPath}" class="source-link" title="View Source">
-                    ${skill.repoPath || 'GitHub'}
+                    ${sourceText}
                 </a>
              </div>
            </div>
@@ -180,7 +183,7 @@ function renderSkills() {
         const isExpanded = state.expandedSkills && state.expandedSkills.includes(skill.name);
 
         return `
-      <div class="skill-card ${isExpanded ? 'expanded' : ''}" id="card-${escapeHtml(skill.name)}" onclick="toggleDetails('${escapeHtml(skill.name)}')" data-search-content="${escapeHtml(searchContent)}">
+      <div class="skill-card ${isExpanded ? 'expanded' : ''}" id="${cardId}" onclick="toggleDetails(${index}, '${escapeHtml(skill.name)}', event)" data-search-content="${escapeHtml(searchContent)}">
         <div class="skill-header">
           <div class="header-left">
             <div class="skill-icon">
@@ -194,7 +197,7 @@ function renderSkills() {
             <div onclick="event.stopPropagation()">${buttonHtml}</div>
           </div>
         </div>
-        <div class="skill-details ${isExpanded ? '' : 'hidden'}" id="details-${escapeHtml(skill.name)}">
+        <div class="skill-details ${isExpanded ? '' : 'hidden'}" id="${detailsId}">
             <div class="detail-content">
                 <div class="detail-row">
                     <strong class="section-title">Overview:</strong>
@@ -235,7 +238,7 @@ function renderSkills() {
                     <strong class="section-title" style="margin-top:12px">Manual Command</strong>
                     <div class="install-block">
                         <div class="cmd-text">${escapeHtml(skill.installCmd || `npx skills add ${skill.repoPath || skill.name}`)}</div>
-                        <button class="action-btn copy-btn" onclick="copyCmd('${escapeHtml(skill.name)}', event)" title="Copy Command">Copy</button>
+                        <button class="action-btn copy-btn" onclick="copyCmd(${index}, event)" title="Copy Command">Copy</button>
                     </div>
                 </div>
             </div>
@@ -315,7 +318,7 @@ function setupEventListeners() {
     });
 
     elements.refreshBtn?.addEventListener('click', () => postCommand('refresh'));
-    elements.saveProfileBtn?.addEventListener('click', () => postCommand('saveProfile'));
+
 
     elements.settingsBtn?.addEventListener('click', toggleSettings);
     elements.cancelSettingsBtn?.addEventListener('click', toggleSettings);
@@ -324,8 +327,11 @@ function setupEventListeners() {
 
 // Handlers (from old JS)
 
-function toggleDetails(skillName) {
-    // 1. Update State
+function toggleDetails(index, skillName, event) {
+    // 0. Stop propagation if triggered from inner elements (though they usually have their own handlers)
+    // Actually no, we want card click to toggle. But let's accept it.
+
+    // 1. Update State (semantic expansion)
     if (!state.expandedSkills) state.expandedSkills = [];
     const idx = state.expandedSkills.indexOf(skillName);
 
@@ -340,8 +346,9 @@ function toggleDetails(skillName) {
     vscode.setState(state);
 
     // 2. Update DOM immediately (faster than full re-render)
-    const details = document.getElementById('details-' + skillName);
-    const card = document.getElementById('card-' + skillName);
+    // Use unique index-based IDs
+    const details = document.getElementById('details-' + index);
+    const card = document.getElementById('card-' + index);
     if (!details || !card) return; // Should not happen
 
     if (expanding) {
@@ -353,9 +360,9 @@ function toggleDetails(skillName) {
     }
 }
 
-function copyCmd(skillName, event) {
+function copyCmd(index, event) {
     if (event) event.stopPropagation();
-    const card = document.getElementById('card-' + skillName);
+    const card = document.getElementById('card-' + index);
     const cmd = card.querySelector('.cmd-text').innerText;
     navigator.clipboard.writeText(cmd);
 }
@@ -402,7 +409,13 @@ window.addEventListener('message', event => {
 
     if (message.command === 'updateSkill') {
         // Find skill and update
-        const skill = state.skills.find(s => s.name === message.skillName);
+        // Use repoPath for precise matching if available (common in searches), fallback to name
+        const skill = state.skills.find(s => {
+            if (message.repoPath && s.repoPath) {
+                return s.repoPath === message.repoPath;
+            }
+            return s.name === message.skillName;
+        });
         if (skill) {
             if (message.description) skill.description = message.description;
             if (message.installCmd) skill.installCmd = message.installCmd;

@@ -4,9 +4,8 @@ import { SkillDetailPanel } from './views/skillDetailPanel';
 import { MarketPanel } from './views/marketPanel';
 import { Skill } from './types';
 import { deleteSkill } from './services/installService';
-import { initCliService, runSkillsCliInteractive, getInstallSource, getInstallArgs, getAgentArgs } from './services/cliService';
+import { initCliService, runSkillsCliInteractive, getInstallArgs, getAgentArgs } from './services/cliService';
 import { PersistenceService } from './services/persistenceService';
-import { scanSkills } from './services/skillScanner';
 
 let treeDataProvider: SkillKnifeTreeDataProvider;
 
@@ -174,107 +173,17 @@ export function activate(context: vscode.ExtensionContext) {
     installGlobalCmd,
     uninstallGlobalCmd,
     // Profile Commands
+    // Profile Commands
     vscode.commands.registerCommand('skillKnife.saveProfile', async () => {
-      const skills = scanSkills().filter(s => s.installations.some(i => i.scope === 'project'));
-      if (skills.length === 0) {
-        vscode.window.showInformationMessage('No project skills to save.');
-        return;
-      }
-
-      const name = await vscode.window.showInputBox({
-        title: 'Save Profile',
-        placeHolder: 'Enter profile name',
-        validateInput: (value) => value ? null : 'Name is required'
-      });
-
-      if (!name) return;
-
-      const profileSkills = skills.map(s => ({
-        name: s.name,
-        source: getInstallSource(s)
-      }));
-
-      PersistenceService.saveProfile({
-        name,
-        created: Date.now(),
-        skills: profileSkills
-      });
-
-      vscode.window.showInformationMessage(`Saved profile "${name}" with ${profileSkills.length} skills.`);
+      await treeDataProvider.saveProfile();
     }),
-
     vscode.commands.registerCommand('skillKnife.loadProfile', async () => {
-      const profiles = PersistenceService.getProfiles();
-      const items = Object.values(profiles).map(p => ({
-        label: p.name,
-        description: `${p.skills.length} skills`,
-        detail: new Date(p.created).toLocaleString(),
-        profile: p
-      }));
-
-      if (items.length === 0) {
-        vscode.window.showInformationMessage('No saved profiles found.');
-        return;
-      }
-
-      const selected = await vscode.window.showQuickPick(items, {
-        title: 'Load Profile (Sync)',
-        placeHolder: 'Select a profile to sync (this will remove extra skills)'
-      });
-
-      if (!selected) return;
-
-      const currentSkills = scanSkills();
-      const currentNames = new Set(currentSkills.map(s => s.name));
-      const profileSkillNames = new Set(selected.profile.skills.map(s => s.name));
-
-      const toInstall = selected.profile.skills.filter(s => !currentNames.has(s.name));
-
-      // Calculate removals (Sync logic enabled by default)
-      const toRemove = currentSkills
-        .filter(s => !profileSkillNames.has(s.name) && s.installations.some(i => i.scope === 'project'))
-        .filter(s => s.metadata && s.name); // Type guard
-
-      if (toInstall.length === 0 && toRemove.length === 0) {
-        vscode.window.showInformationMessage('Project is already in sync with profile.');
-        return;
-      }
-
-      // Confirmation for destructive Sync
-      if (toRemove.length > 0) {
-        const confirm = await vscode.window.showWarningMessage(
-          `Syncing will remove ${toRemove.length} extra skills: ${toRemove.map(s => s.name).join(', ')}. Continue?`,
-          { modal: true },
-          'Yes, Sync'
-        );
-        if (confirm !== 'Yes, Sync') return;
-      }
-
-      // 1. Remove extras
-      if (toRemove.length > 0) {
-        for (const skill of toRemove) {
-          try {
-            deleteSkill(skill);
-          } catch (e) {
-            console.error(`Failed to remove ${skill.name}:`, e);
-          }
-        }
-      }
-
-      // 2. Install missing
-      if (toInstall.length > 0) {
-        for (const skill of toInstall) {
-          try {
-            runSkillsCliInteractive(['add', skill.source, '--universal']);
-          } catch (e) {
-            // error
-          }
-        }
-        vscode.window.showInformationMessage(`Launched installation for missing skills. Check terminal.`);
-      }
-
-      treeDataProvider.refresh();
+      // Visual Only for now, or implement later
+      vscode.window.showInformationMessage('Load Profile feature coming soon.');
     })
+
+
+
   );
 }
 

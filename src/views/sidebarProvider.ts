@@ -136,6 +136,48 @@ export class SkillKnifeTreeDataProvider
     return [];
   }
 
+
+  async saveProfile(): Promise<void> {
+    // 1. Get currently installed skills in project scope
+    // Note: this.skills contains all scanned skills
+    const projectSkills = this.skills.filter(s =>
+      s.installations.some(i => i.scope === 'project')
+    );
+
+    if (projectSkills.length === 0) {
+      vscode.window.showInformationMessage('No skills installed in the current project to save.');
+      return;
+    }
+
+    // 2. Ask for profile name
+    const profileName = await vscode.window.showInputBox({
+      title: 'Save Profile',
+      placeHolder: 'Enter profile name (e.g., "Web Dev Stack")',
+      validateInput: (value) => value ? null : 'Name is required'
+    });
+
+    if (!profileName) return;
+
+    // 3. Create profile object
+    const profile = {
+      name: profileName,
+      created: Date.now(),
+      skills: projectSkills.map(s => ({
+        name: s.name,
+        // Best effort to capture source info if available in metadata
+        source: s.metadata?.source || 'unknown'
+      }))
+    };
+
+    // 4. Save via PersistenceService
+    try {
+      PersistenceService.saveProfile(profile);
+      vscode.window.showInformationMessage(`Profile "${profileName}" saved with ${projectSkills.length} skills.`);
+    } catch (e) {
+      vscode.window.showErrorMessage(`Failed to save profile: ${e}`);
+    }
+  }
+
   async deleteGroup(item: GroupingItem): Promise<void> {
     const confirm = await vscode.window.showWarningMessage(
       `Delete all skills in ${item.label}? This cannot be undone.`,
